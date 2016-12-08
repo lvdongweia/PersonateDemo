@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- The app wide background color -->
+    <color name="actionbar_title">#ff4d4d4d</color>
+</resources>

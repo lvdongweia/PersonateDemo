@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">拟人化演示</string>
+    <string name="male">男生</string>
+    <string name="female">女生</string>
+    <string name="age">岁</string>
+    <string name="help_tip">你好, 请问您需要什么帮助</string>
+    <string name="question_tip">您可以这样问我</string>
+    <string name="listening">我正在听, 请继续...</string>
+    <string name="thinking">这个问题需要思考一下, 请稍等...</string>
+    <string name="speaking">请耐心倾听讲解...</string>
+
+    <string-array name="help_array" translatable="false">
+        <item>今天是几月几日</item>
+        <item>打开相册</item>
+        <item>唱首歌给我听吧</item>
+        <item>我们来玩游戏吧</item>
+    </string-array>
+
+    <string-array name="cmd_chat_exit" translatable="false">
+        <item>不聊了</item>
+        <item>歇会</item>
+        <item>休息</item>
+        <item>不聊天了</item>
+    </string-array>
+
+    <string-array name="cmd_action" translatable="false">
+        <item>结束</item>
+        <item>停止跳舞</item>
+        <item>暂停</item>
+        <item>停止</item>
+        <item>停止讲</item>
+        <item>停</item>
+        <item>开始</item>
+        <item>继续</item>
+        <item>继续讲</item>
+    </string-array>
+
+    <string name="hello">你好</string>
+    <string name="bye">再见</string>
+</resources>

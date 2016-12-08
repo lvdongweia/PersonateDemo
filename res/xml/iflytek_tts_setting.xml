@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <ListPreference
+        android:defaultValue="local"
+        android:entries="@array/engine_entries"
+        android:entryValues="@array/engine_values"
+        android:key="engine_type"
+        android:title="引擎类型" />
+    <ListPreference
+        android:defaultValue="mengmeng"
+        android:entries="@array/voice_cloud_entries"
+        android:entryValues="@array/voice_cloud_values"
+        android:key="voice_name"
+        android:title="发音人" />
+
+    <SeekBarPreference
+        android:defaultValue="50"
+        android:dialogTitle="请输入语速:在线(0-100)本地(0-200)"
+        android:key="speed"
+        android:max="100"
+        android:summary="默认值：50 "
+        android:title="语速" />
+    <SeekBarPreference
+        android:defaultValue="50"
+        android:dialogTitle="请输入音调(0-100)"
+        android:key="pitch"
+        android:max="100"
+        android:summary="默认值：50 "
+        android:title="音调" />
+    <SeekBarPreference
+        android:defaultValue="100"
+        android:dialogTitle="请输入音量(0-100)"
+        android:key="volume"
+        android:max="100"
+        android:summary="默认值：50 "
+        android:title="音量" />
+
+    <ListPreference
+        android:defaultValue="3"
+        android:entries="@array/stream_entries"
+        android:entryValues="@array/stream_values"
+        android:key="stream_type"
+        android:title="音频流类型" />
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="auto_switch"
+        android:summary="默认值：不切换 "
+        android:title="自动切换引擎类型" />
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="save_audio"
+        android:summary="默认值：不保存 "
+        android:title="@string/pref_title_audio_save" />
+
+</PreferenceScreen>

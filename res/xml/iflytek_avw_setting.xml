@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+    <SeekBarPreference
+        android:defaultValue="10"
+        android:dialogTitle="请输入门限值(-20 ~ 60)"
+        android:max="80"
+        android:key="ivw_threshold"
+        android:summary="默认值：10"
+        android:title="门限值" />
+</PreferenceScreen>

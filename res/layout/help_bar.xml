@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/help_bar"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <Button
+        android:id="@+id/btn_state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="44px"
+        android:background="@drawable/speech_00"
+        android:focusable="false"/>
+
+    <LinearLayout
+        android:id="@+id/help_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/btn_state"
+        android:gravity="left|center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="250px"
+            android:gravity="left|center_vertical"
+            android:focusable="false"
+            android:textColor="#FFFFFF"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:text="@string/help_tip"
+            android:typeface="serif"/>
+
+        <ListView
+            android:id="@+id/list_help"
+            android:layout_width="400px"
+            android:layout_height="wrap_content"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            android:divider="@null"
+            android:visibility="gone"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_help"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="85px"
+        android:layout_marginLeft="54px"
+        android:layout_toEndOf="@id/help_layout"
+        android:background="@drawable/btn_help"
+        android:focusable="false"/>
+</RelativeLayout>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="chat_enable"
+        android:summary="默认值：打开"
+        android:title="聊天" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="asr_enable"
+        android:summary="默认值：打开"
+        android:title="ASR" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="avw_enable"
+        android:summary="默认值：打开"
+        android:title="AVW" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="nlu_enable"
+        android:summary="默认值：打开"
+        android:title="NLU" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="tts_enable"
+        android:summary="默认值：打开"
+        android:title="TTS" />
+    <SeekBarPreference
+        android:defaultValue="50"
+        android:dialogTitle="请输入语速:(0-100)"
+        android:key="tts_speed"
+        android:max="100"
+        android:summary="默认值：50 "
+        android:title="语速" />
+    <SeekBarPreference
+        android:defaultValue="50"
+        android:dialogTitle="请输入音调(0-100)"
+        android:key="tts_pitch"
+        android:max="100"
+        android:summary="默认值：50 "
+        android:title="音调" />
+    <SeekBarPreference
+        android:defaultValue="100"
+        android:dialogTitle="请输入音量(0-100)"
+        android:key="tts_volume"
+        android:max="100"
+        android:summary="默认值：100 "
+        android:title="音量" />
+
+</PreferenceScreen>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string translatable="false" name="pass">通过</string>
+    <string translatable="false" name="fail">失败</string>
+    <string translatable="false" name="confirm">确定</string>
+    <string translatable="false" name="command_label">原始命令： </string>
+    <string translatable="false" name="asr_test">语音识别测试</string>
+    <string translatable="false" name="ai_start">开始语言理解测试</string>
+    <string translatable="false" name="ai_stop">结束测试</string>
+    <string translatable="false" name="ai_label">您刚才说的是：</string>
+    <string translatable="false" name="ai_array">请慢速、顺次读出下列词组。\n
+        \n
+        电磁波\n
+        若干\n
+        推测\n
+        大学生\n
+        你好\n
+        解放
+    </string>
+
+    <string translatable="false" name="speech">Speech</string>
+
+    <string translatable="false" name="understand">Understand</string>
+    <string translatable="false" name="help">Help</string>
+    <string translatable="false" name="clear">Clear Output</string>
+    <string translatable="false" name="speak">Speak</string>
+    <string translatable="false" name="Ok">Ok</string>
+
+    <string translatable="false" name="speech_input_empty">请输入需要理解的文本</string>
+    <string translatable="false" name="debug_level">Debug Level: </string>
+    <string translatable="false" name="default_level">1</string>
+
+    <string-array name="debug_level_array" translatable="false">
+        <item>0--Close log</item>
+        <item>1--Open Asr Tts Nlu status</item>
+        <item>2--Open status log</item>
+        <item>3--Open thread log</item>
+    </string-array>
+
+    <string translatable="false" name="dialet">方言</string>
+
+    <string-array name="dialect_chinese" translatable="false">
+        <item>"男孩"</item>
+        <item>"女孩"</item>
+        <item>"邻家姐姐"</item>
+        <item>"女青年"</item>
+        <item>"男青年"</item>
+
+        <item>"四川话"</item>
+        <item>"河南话"</item>
+        <item>"湖南话"</item>
+        <item>"广东话"</item>
+        <item>"台湾话"</item>
+
+        <item>"东北话"</item>
+    </string-array>
+
+    <string-array name="dialect_english" translatable="false">
+        <item>"xiaoxin"</item>
+        <item>"nannan"</item>
+        <item>"xiaojing"</item>
+        <item>"xiaoyan"</item>
+        <item>"xiaofeng"</item>
+
+        <item>"xiaorong"</item>
+        <item>"xiaokun"</item>
+        <item>"xiaoqiang"</item>
+        <item>"xiaomei"</item>
+        <item>"xiaolin"</item>
+
+        <item>"xiaoqian"</item>
+    </string-array>
+
+    <string translatable="false" name="asr_status">ASR  Status: </string>
+    <string translatable="false" name="tts_status">TTS  Status: </string>
+    <string translatable="false" name="nlu_status">NLU  Status: </string>
+
+    <string translatable="false" name="ctrl_asr">Ctrl ASR</string>
+    <string translatable="false" name="ctrl_nlu">Ctrl NLU</string>
+    <string translatable="false" name="ctrl_tts">Ctrl TTS</string>
+</resources>

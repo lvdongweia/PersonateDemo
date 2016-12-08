@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mood_smile">开心|心情好|高兴</string>
+
+    <string name="mood_sad">不开心|难过</string>
+
+    <string name="mood_laught"></string>
+
+    <string name="mood_surprise">惊讶</string>
+
+    <string name="mood_cry"></string>
+
+    <!--疑问-->
+    <string name="mood_doubt"></string>
+
+    <!--嘘-->
+    <string name="mood_shh"></string>
+
+    <string name="mood_shy">紧张</string>
+
+    <!--手捂着嘴笑-->
+    <string name="mood_cover_smile">孤独|陪着你</string>
+
+    <!--鬼脸-->
+    <string name="mood_grimace">喜欢你|不讨厌|呵呵|小脑袋有点转不过来了</string>
+
+    <!--调皮-->
+    <string name="mood_naughty">害羞|人见人爱|我很可爱</string>
+
+    <!--伤心-->
+    <string name="mood_hearted"></string>
+
+    <string name="mood_angry"></string>
+
+    <string name="mood_think">思考</string>
+
+    <string name="modd_talk"></string>
+
+    <string name="mood_listen"></string>
+
+    <string name="mood_default"></string>
+
+    <string name="mood_blink"></string>
+
+    <string name="mood_eyeclose"></string>
+
+    <string name="mood_eyeopen"></string>
+
+    <string name="mood_frown"></string>
+
+    <string name="mood_eyeblindone"></string>
+
+</resources>

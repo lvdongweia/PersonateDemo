@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <ListPreference
+        android:defaultValue="mix"
+        android:entries="@array/engine_entries"
+        android:entryValues="@array/engine_values"
+        android:key="engine_type"
+        android:title="引擎类型" />
+
+    <ListPreference
+        android:defaultValue="zh_CN"
+        android:entries="@array/language_entries"
+        android:entryValues="@array/language_values"
+        android:key="language"
+        android:summary="支持：中文，英文 "
+        android:title="语言设置" />
+
+    <ListPreference
+        android:defaultValue="mandarin"
+        android:entries="@array/accent_entries"
+        android:entryValues="@array/accent_values"
+        android:key="accent"
+        android:summary="支持：普通话，粤语，河南话，四川话 "
+        android:title="方言设置" />
+
+    <SeekBarPreference
+        android:defaultValue="7000"
+        android:max="10000"
+        android:key="vad_bos"
+        android:title="@string/bos_title" />
+
+    <SeekBarPreference
+        android:defaultValue="600"
+        android:max="10000"
+        android:key="vad_eos"
+        android:title="@string/eos_title" />
+
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="asr_ptt"
+        android:summary="默认值：有标点 "
+        android:title="标点符号" />
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="auto_switch"
+        android:summary="默认值：不切换 "
+        android:title="自动切换引擎类型" />
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="save_audio"
+        android:summary="默认值：不保存,文件路径/sdcard/iflytek/asr"
+        android:title="@string/pref_title_audio_save" />
+
+</PreferenceScreen>

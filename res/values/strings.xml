@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Personate Demo</string>
+    <string name="male">male</string>
+    <string name="female">female</string>
+    <string name="age">age</string>
+    <string name="help_tip">Hello,do you need any help?</string>
+    <string name="question_tip">You can ask me like this</string>
+    <string name="listening">I am listening,please go on...</string>
+    <string name="thinking">This question needs to think about,please wait for a moment...</string>
+    <string name="speaking">Please listen patiently to explain...</string>
+
+    <string-array name="help_array" translatable="false">
+        <item>What\'s the date today?</item>
+        <item>Open Album</item>
+        <item>Sing a song for me</item>
+        <item>Let\'s play a game</item>
+    </string-array>
+
+    <string-array name="cmd_chat_exit" translatable="false">
+        <item>No chat</item>
+        <item>Have a rest</item>
+        <item>Rest</item>
+    </string-array>
+
+    <string-array name="cmd_action" translatable="false">
+        <item>End</item>
+        <item>Stop dancing</item>
+        <item>Suspend</item>
+        <item>Stop</item>
+        <item>Stop talking</item>
+        <item>Start</item>
+        <item>Continue</item>
+        <item>Go on</item>
+    </string-array>
+
+    <string name="hello">Hello</string>
+    <string name="bye">Bye</string>
+</resources>
