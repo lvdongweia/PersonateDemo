@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2006 The Android Open Source Project
+<?xml version="1.0" encoding="utf-8"?><!-- Copyright (C) 2006 The Android Open Source Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -14,30 +13,35 @@
      limitations under the License.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
-    android:layout_height="130px"
-    android:gravity="end">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
 
     <LinearLayout
-        android:layout_width="960px"
-        android:layout_height="wrap_content"
-        android:gravity="end">
+        android:layout_width="match_parent"
+        android:layout_height="340px"
+        android:layout_marginRight="180px"
+        android:gravity="bottom"
+        android:orientation="horizontal">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/dialog_me">
+            android:background="@drawable/dialog_box_question"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/question"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:textSize="20sp"
-                android:textColor="#9A9EA4"/>
+                android:layout_marginTop="40px"
+                android:layout_marginBottom="40px"
+                android:layout_marginLeft="100px"
+                android:layout_marginRight="100px"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textColor="#ffffff"
+                android:textSize="90px" />
         </LinearLayout>
-
     </LinearLayout>
-
 </LinearLayout>
-

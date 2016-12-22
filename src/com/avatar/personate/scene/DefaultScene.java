@@ -5,10 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
-import android.graphics.ImageFormat;
 import android.graphics.PointF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.media.AudioManager;
 import android.media.FaceDetector;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -18,25 +18,32 @@ import android.robot.motion.RobotMotion;
 import android.robot.scheduler.RobotConstants;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-
+import com.avatar.personate.ThinkView;
 import com.avatar.personate.Util;
 import com.avatar.robot.Robot;
 
 import com.avatar.personate.R;
+import com.avatar.robot.util.SystemMotion;
+
 
 public class DefaultScene extends PersonateScene {
     private final String TAG = "DefaultScene";
     private Map<Integer, String[]> mMoodMap;
     private FaceTrack mFaceTrack;
     private RobotMotion mRobotCtl;
-
+    private AudioManager mAudioManager;
     private boolean mIsPersonNearby;
+
+    private final int STATE_ACTIVE = 0;
+    private final int STATE_IDLE = 1;
+    private final long IDLE_TIME = 30 * 1000; //ms
+    private volatile int mState = STATE_ACTIVE;
+    private long mLastActiveTime = System.currentTimeMillis();
 
     public DefaultScene(Context context) {
         super(context, SCENE_DEFAULT);
@@ -48,6 +55,7 @@ public class DefaultScene extends PersonateScene {
             }
         });
 
+        mAudioManager = new AudioManager(context);
         mRobotCtl = new RobotMotion();
         mRobotCtl.setListener(new RobotMotion.Listener() {
 
@@ -58,12 +66,15 @@ public class DefaultScene extends PersonateScene {
 
             @Override
             public void onCompleted(int session_id, int result) {
-                Util.Logd(TAG, "onCompleted");
+                //Util.Logd(TAG, "onCompleted");
             }
         });
 
         //start face track
         mFaceTrack = new FaceTrack();
+
+        // 延后检查是否为idle状态
+        mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
     }
 
     @Override
@@ -71,23 +82,47 @@ public class DefaultScene extends PersonateScene {
         mIsWorking = true;
         registerEvent();
 
+        randomActionReset();
         startFaceTrack();
     }
 
     @Override
     public void stop() {
+        mIsWorking = false;
+        if (mIdleMotionThread != null) {
+            mIdleMotionThread.interrupt();
+        }
+
         unregisterEvent();
+        mHandler.removeMessages(MSG_IDLE_ACTION);
+        mHandler.removeMessages(MSG_IDLE_CHECK);
 
         // stop to prevent not get leave event
         stopFaceTrack();
-        mIsWorking = false;
     }
 
     @Override
     public void handleMessageInner(Message msg) {
+        if (!mIsWorking) return;
+
         Util.Logd(TAG, "Message:" + msg.what);
         switch (msg.what) {
             case MSG_NLU_EVENT:
+                mLastActiveTime = System.currentTimeMillis();
+                if (mState == STATE_IDLE) {
+                    mState = STATE_ACTIVE;
+                    Util.Logd(TAG, "#######Exit idle state");
+                    if (mIdleMotionThread != null) {
+                        mIdleMotionThread.interrupt();
+                    }
+
+                    // 重新启动人脸检测
+                    startFaceTrack();
+
+                    // 延后检查是否为idle状态
+                    mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
+                }
+
                 doNluResponse(msg.arg1, (String) msg.obj);
                 break;
 
@@ -105,6 +140,26 @@ public class DefaultScene extends PersonateScene {
 
             case MSG_RC_EVENT:
                 doEventMotion(msg.arg1, msg.arg2);
+                break;
+
+            case MSG_IDLE_CHECK:
+                long diff = System.currentTimeMillis() - mLastActiveTime;
+                if (diff > IDLE_TIME) {
+                    mState = STATE_IDLE;
+                    Util.Logd(TAG, "#######Enter idle state");
+                    stopFaceTrack();
+                    mHandler.sendEmptyMessage(MSG_IDLE_ACTION);
+                } else {
+                    // 延后检查是否为idle状态
+                    mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME - diff);
+                }
+                break;
+
+            case MSG_IDLE_ACTION:
+                if (mState == STATE_IDLE && mIdleMotionThread == null) {
+                    mIdleMotionThread = new Thread(mIdleRunnable);
+                    mIdleMotionThread.start();
+                }
                 break;
 
             default:
@@ -125,6 +180,7 @@ public class DefaultScene extends PersonateScene {
     }
 
     private void registerEvent() {
+        mAudioManager.setMicArrayEventListener(mContext.getPackageName(), mMicArraryEvent);
         IntentFilter intent = new IntentFilter();
 
         registerTouchEvent(intent);
@@ -134,6 +190,7 @@ public class DefaultScene extends PersonateScene {
     }
 
     private void unregisterEvent() {
+        mAudioManager.removeMicArrayEventListener(mContext.getPackageName());
         mContext.unregisterReceiver(mEventReceiver);
     }
 
@@ -232,8 +289,13 @@ public class DefaultScene extends PersonateScene {
     }
 
     private void startFaceTrack() {
-        if (mFaceTrack.init())
-            mFaceTrack.start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (mFaceTrack.init())
+                    mFaceTrack.start();
+            }
+        }).start();
     }
 
     private void stopFaceTrack() {
@@ -274,7 +336,88 @@ public class DefaultScene extends PersonateScene {
         mRobotCtl.emoji(RobotMotion.Emoji.DEFAULT);
     }
 
+    private final AudioManager.MicArrayEventListener mMicArraryEvent = new AudioManager.MicArrayEventListener() {
+        @Override
+        public void onWakeUp(int angle) {
+            int headPos = mFaceTrack.getNowRotateAngle();
+            //mFaceTrack.setNowRotateAngle(0);
+            int turnAngle = 0;
+            if (angle <= 180) {
+                //turnAngle = angle + headPos;
+                turnAngle = angle;
+                mRobotCtl.turn(turnAngle, 2);
+            }
+            else if (angle < 360) {
+                //turnAngle = angle - 360 + headPos;
+                turnAngle = angle - 360;
+                mRobotCtl.turn(turnAngle, 2);
+            }
 
+            Util.Logd(TAG, "onWakeUp:" + angle + " headPos: " + headPos + "  Real Rotate:" + turnAngle);
+
+            mAudioManager.setMicArrayOrientation(AudioManager.MIC_ARRAY_ORI_0_360);
+        }
+    };
+
+    private Thread mIdleMotionThread;
+    private final Runnable mIdleRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mState != STATE_IDLE) return;
+
+            int emojiId, index = 0;
+            emojiId = (int) (Math.random() * 100) % 27; // 26个表情中随机选取
+            mRobotCtl.emoji(emojiId);
+
+            index = (int) (Math.random() * 10) % 5;
+            if (index == 0) {
+                mRobotCtl.doAction(SystemMotion.IDLE, 1, 5000);
+                sleep(10000);
+            } else if (index == 1) {
+                mRobotCtl.doAction(SystemMotion.CHAT_HEAD_ARMS_CURVED, 1, 5000);
+                sleep(10000);
+            } else if (index == 2) {
+                mRobotCtl.doAction(SystemMotion.CHAT_HEAD_ARMS, 1, 5000);
+                sleep(10000);
+            } else if (index == 3) {
+                mRobotCtl.doAction(SystemMotion.CHAT_RIGHT_ARM, 1, 5000);
+                sleep(10000);
+            } else if (index == 4) {
+                mRobotCtl.doAction(SystemMotion.CHAT_LEFT_ARM, 1, 5000);
+                sleep(10000);
+            }
+
+            randomActionReset();
+            mIdleMotionThread = null;
+
+            // 延后5秒做下组动作
+            if (isIdle() && mIsWorking) {
+                Util.Logd(TAG, "send message : MSG_IDLE_ACTION");
+                mHandler.sendEmptyMessageDelayed(MSG_IDLE_ACTION, 5000);
+            }
+        }
+    };
+
+    private boolean isIdle() {
+        return mState == STATE_IDLE;
+    }
+
+    private void sleep(long millis) {
+        try {
+            if (mIdleMotionThread != null)
+                mIdleMotionThread.currentThread().sleep(millis);
+        } catch (InterruptedException e) {
+            Util.Logd(TAG, "Thread interrupt!");
+        }
+    }
+
+    private void randomActionReset() {
+        mRobotCtl.reset(RobotMotion.Units.ALL);
+    }
+
+    /**
+     *  Face Tracker
+     */
     private static final int MSG_FACE_DECODE = 0;
 
     private class FaceTrack implements Camera.PreviewCallback {
@@ -308,6 +451,9 @@ public class DefaultScene extends PersonateScene {
 
             getFocusDistance();
             mFaceDetector = new FaceDetector(WIDTH, HEIGHT, MAX_FACES);
+
+            // reset head position
+            setNowRotateAngle(0);
         }
 
         private final RobotMotion.Listener mListener = new RobotMotion.Listener() {
@@ -325,6 +471,16 @@ public class DefaultScene extends PersonateScene {
                 }
             }
         };
+
+        public int getNowRotateAngle() {
+            return mNowRotateAngle;
+        }
+
+        public void setNowRotateAngle(int angle) {
+            mIsIdle = false;
+            mNowRotateAngle = angle;
+            mSessionId = mFaceCtl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 500, 0);
+        }
 
         public boolean init() {
             try {
@@ -358,10 +514,6 @@ public class DefaultScene extends PersonateScene {
             HandlerThread faceThread = new HandlerThread("Face track");
             faceThread.start();
             mFaceHandler = new FaceHandler(faceThread.getLooper());
-
-            // reset head position
-            mNowRotateAngle = 0;
-            neckRotate(0, OR_POST);
 
             return true;
         }
@@ -488,7 +640,7 @@ public class DefaultScene extends PersonateScene {
                             or = dis < 0 ? OR_POST : OR_NEGT;
                             //grad = Math.atan(Math.abs(dis) / mRotateParam);
                             //degree = Math.toDegrees(grad);
-                            Util.Logd(TAG, "Tilt height:" + dis);
+                            //Util.Logd(TAG, "Tilt height:" + dis);
                             if (Math.abs(dis) > 0.2) {
                                 neckTilt((int) 5, or);
                             } else {
@@ -501,7 +653,7 @@ public class DefaultScene extends PersonateScene {
                                 } else {
                                     degree += 2;
                                 }
-                                Util.Logd(TAG, "Rotate Degree:" + degree*or);
+                                //Util.Logd(TAG, "Rotate Degree:" + degree*or);
                                 if (Math.abs(degree) > 5.0f) {
                                     neckRotate((int)degree, or);
                                 } else {

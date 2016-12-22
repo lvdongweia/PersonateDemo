@@ -6,8 +6,10 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.robot.scheduler.SchedulerManager;
 import android.robot.speech.SpeechManager;
 import android.robot.speech.SpeechService;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,6 +18,7 @@ import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -30,71 +33,16 @@ import com.avatar.personate.Util;
 public class PersonateActivity extends Activity implements View.OnClickListener {
     private static final String TAG = "Activity";
 
-    private final int[] mBtnIDArray = { R.id.btn_help, R.id.btn_microphone, R.id.btn_keyboard_show,
-            R.id.btn_keyboard_hide, R.id.btn_send, };
-
-    private final int[] mMicImageArray = { R.drawable.mic_00, R.drawable.mic_01, R.drawable.mic_02, R.drawable.mic_03,
-            R.drawable.mic_04, R.drawable.mic_05, R.drawable.mic_06, R.drawable.mic_07, R.drawable.mic_08,
-            R.drawable.mic_09, R.drawable.mic_10, R.drawable.mic_11,
-
-            R.drawable.mic_12, R.drawable.mic_13, R.drawable.mic_14, R.drawable.mic_15, R.drawable.mic_16,
-            R.drawable.mic_17, R.drawable.mic_18, R.drawable.mic_19, R.drawable.mic_20, R.drawable.mic_21,
-            R.drawable.mic_22, R.drawable.mic_23,
-
-            R.drawable.mic_24, R.drawable.mic_25, R.drawable.mic_26, R.drawable.mic_27, R.drawable.mic_28,
-            R.drawable.mic_29, R.drawable.mic_30, R.drawable.mic_31, R.drawable.mic_32, R.drawable.mic_33,
-            R.drawable.mic_34, };
-
-    private final int[] mListenImageArray = { R.drawable.listen_00, R.drawable.listen_01, R.drawable.listen_02,
-            R.drawable.listen_03, R.drawable.listen_04, R.drawable.listen_05, R.drawable.listen_06,
-            R.drawable.listen_07, R.drawable.listen_08, R.drawable.listen_09, R.drawable.listen_10,
-            R.drawable.listen_11,
-
-            R.drawable.listen_12, R.drawable.listen_13, R.drawable.listen_14, R.drawable.listen_15,
-            R.drawable.listen_16, R.drawable.listen_17, R.drawable.listen_18, R.drawable.listen_19,
-            R.drawable.listen_20, R.drawable.listen_21, R.drawable.listen_22, R.drawable.listen_23,
-
-            R.drawable.listen_24, };
-
-    private final int[] mThinkImageArray = { R.drawable.think_00, R.drawable.think_01, R.drawable.think_02,
-            R.drawable.think_03, R.drawable.think_04, R.drawable.think_05, R.drawable.think_06, R.drawable.think_07,
-            R.drawable.think_08, R.drawable.think_09, R.drawable.think_10, R.drawable.think_11,
-
-            R.drawable.think_12, R.drawable.think_13, R.drawable.think_14, R.drawable.think_15, R.drawable.think_16,
-            R.drawable.think_17, R.drawable.think_18, R.drawable.think_19, R.drawable.think_20, R.drawable.think_21,
-            R.drawable.think_22, R.drawable.think_23,
-
-            R.drawable.think_24, };
-
-    private final int[] mSpeakImageArray = { R.drawable.speech_00, R.drawable.speech_01, R.drawable.speech_02,
-            R.drawable.speech_03, R.drawable.speech_04, R.drawable.speech_05, R.drawable.speech_06,
-            R.drawable.speech_07, R.drawable.speech_08, R.drawable.speech_09, R.drawable.speech_10,
-            R.drawable.speech_11,
-
-            R.drawable.speech_12, R.drawable.speech_13, R.drawable.speech_14, R.drawable.speech_15,
-            R.drawable.speech_16, R.drawable.speech_17, R.drawable.speech_18, R.drawable.speech_19,
-            R.drawable.speech_20, R.drawable.speech_21, R.drawable.speech_22, R.drawable.speech_23,
-
-            R.drawable.speech_24, };
-
     private SpeechManager mSpeechManager;
     private PersonateImpl mPersonate;
 
-
-    private TextView mTitleView;
-    private ListView mHelpListView;
     private ListView mDialogListView;
-    private HelpAdapter mHelpAdapter;
+    private FrameLayout mStateView;
+    private ThinkView mThinkView;
+    private ListeningView mListenView;
+    private SpeakView mSpeakView;
     private DialogAdapter mDialogAdapter;
 
-    private RelativeLayout mKeyboardLayout;
-    private RelativeLayout mMicrophoneLayout;
-    private Button mMicrophone;
-    private Button mState;
-
-    private List<Drawable> mMicImageList;
-    private List<Drawable> mListenImageList;
-    private List<Drawable> mThinkImageList;
     private List<Drawable> mSpeakImageList;
 
     private final MyHandler mHandler = new MyHandler();
@@ -104,30 +52,34 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.ai_dialog);
 
+        // TODO use mic-2
+        SchedulerManager scm = (SchedulerManager) getSystemService(Context.SCHEDULER_SERVICE);
+        scm.setMicroPhoneType(SchedulerManager.MICROPHONE_ARRAY);
+
+        mStateView = (FrameLayout) findViewById(R.id.state_view);
+        mListenView = (ListeningView) getLayoutInflater().inflate(R.layout.listening_view, null);
+        mThinkView = (ThinkView) getLayoutInflater().inflate(R.layout.think_view, null);
+        mSpeakView = (SpeakView) getLayoutInflater().inflate(R.layout.speak_view, null);
+
+        Button home_1 = (Button) mThinkView.findViewById(R.id.btn_home_1);
+        home_1.setOnClickListener(this);
+        Button mic = (Button) mThinkView.findViewById(R.id.btn_mic);
+        mic.setOnClickListener(this);
+        Button question_1 = (Button) mThinkView.findViewById(R.id.btn_question_1);
+        question_1.setOnClickListener(this);
+
+        Button home_2 = (Button) mSpeakView.findViewById(R.id.btn_home_2);
+        home_2.setOnClickListener(this);
+        Button question_2 = (Button) mSpeakView.findViewById(R.id.btn_question_2);
+        question_2.setOnClickListener(this);
+
+
+        mStateView.addView(mThinkView);
+
         mDialogListView = (ListView) findViewById(R.id.list_dialog);
         mDialogAdapter = new DialogAdapter(this);
         mDialogListView.setAdapter(mDialogAdapter);
-        // mDialogListView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-
-        mTitleView = (TextView) findViewById(R.id.title);
-        mHelpListView = (ListView) findViewById(R.id.list_help);
-        mHelpAdapter = new HelpAdapter(this, 0, getResources().getStringArray(R.array.help_array));
-        mHelpListView.setAdapter(mHelpAdapter);
-
-        for (int i = 0; i < mBtnIDArray.length; i++) {
-            Button button = (Button) findViewById(mBtnIDArray[i]);
-            button.setOnClickListener(this);
-        }
-
-        mKeyboardLayout = (RelativeLayout) findViewById(R.id.bottom_keyboard);
-        mMicrophoneLayout = (RelativeLayout) findViewById(R.id.bottom_microphone);
-        mMicrophone = (Button) findViewById(R.id.btn_microphone);
-        mState = (Button) findViewById(R.id.btn_state);
-
-        mMicImageList = initImageDrawable(mMicImageArray);
-        mListenImageList = initImageDrawable(mListenImageArray);
-        mThinkImageList = initImageDrawable(mThinkImageArray);
-        mSpeakImageList = initImageDrawable(mSpeakImageArray);
+        mDialogListView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         mSpeechManager = (SpeechManager) getSystemService(SpeechService.SERVICE_NAME);
         if (mSpeechManager == null) {
@@ -137,7 +89,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                     if (status) {
                         Util.Logd(TAG, "speech manager init success!");
                         if (mSpeechManager.getAsrEnable()) {
-                            mMicrophone.setBackgroundResource(R.drawable.mic_00);
+
                         }
                     } else {
                         Util.Loge(TAG, "speech manager init fail!");
@@ -146,7 +98,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             }, "com.avatar.dialog");
         } else {
             if (mSpeechManager.getAsrEnable()) {
-                mMicrophone.setBackgroundResource(R.drawable.mic_00);
+
             }
         }
 
@@ -243,7 +195,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     private final SpeechManager.AsrListener mAsrListener = new SpeechManager.AsrListener() {
         @Override
         public void onBegin() {
-            Util.Loge(TAG, "ASR: Begin");
+            //Util.Loge(TAG, "ASR: Begin");
             Message.obtain(mHandler, MSG_START_LISTENING).sendToTarget();
         }
 
@@ -259,23 +211,24 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             if (!TextUtils.isEmpty(text)) {
                 Util.Loge(TAG, "ASR Result: " + text);
                 mDialogAdapter.addQuestion((String) text);
+                //mDialogAdapter.addQuestion("我不知道你在说什么呢呢！看来我要学的还有很多呢");
             }
             return false;
         }
 
         @Override
         public void onError(int error) {
-            Util.Loge(TAG, "ASR: Error");
-            // Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
+            //Util.Loge(TAG, "ASR: Error");
+            //Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
         }
 
         @Override
         public void onEnd() {
-            Util.Loge(TAG, "ASR: End");
+            //Util.Loge(TAG, "ASR: End");
             Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
-            if (mSpeechManager.getAsrEnable()) {
-                Message.obtain(mHandler, MSG_START_THINKING).sendToTarget();
-            }
+            //if (mSpeechManager.getAsrEnable()) {
+            //    Message.obtain(mHandler, MSG_START_THINKING).sendToTarget();
+            //}
         }
 
     };
@@ -283,7 +236,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         @Override
         public void onBegin() {
             Util.Loge(TAG, "AVW: Begin");
-            Message.obtain(mHandler, MSG_START_LISTENING).sendToTarget();
+            //Message.obtain(mHandler, MSG_START_LISTENING).sendToTarget();
         }
 
         @Override
@@ -295,10 +248,10 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public boolean onResult(String text) {
-            if (!TextUtils.isEmpty(text)) {
+            /*if (!TextUtils.isEmpty(text)) {
                 Util.Loge(TAG, "AVW Result: " + text);
                 mDialogAdapter.addQuestion((String) text);
-            }
+            }*/
             return false;
         }
 
@@ -311,10 +264,10 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         @Override
         public void onEnd() {
             Util.Loge(TAG, "AVW: End");
-            Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
+            /*Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
             if (mSpeechManager.getAsrEnable()) {
                 Message.obtain(mHandler, MSG_START_THINKING).sendToTarget();
-            }
+            }*/
         }
 
     };
@@ -322,7 +275,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public void onBegin(int requestId) {
-            // Message.obtain(mHandler, MSG_START_THINKING).sendToTarget();
+            Message.obtain(mHandler, MSG_START_THINKING).sendToTarget();
         }
 
         @Override
@@ -330,6 +283,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             if (!TextUtils.isEmpty(text)) {
                 Util.Loge(TAG, "NLU: " + text);
                 mDialogAdapter.addAnswer(text);
+                //mDialogAdapter.addAnswer("我不知道你在说什么呢！看来我要学的还有很多呢");
                 if (mPersonate != null) {
                     mPersonate.onNluResult(requestId, text);
                 }
@@ -339,7 +293,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public void onError(int requestId) {
-            // Message.obtain(mHandler, MSG_STOP_THINKING).sendToTarget();
+            Message.obtain(mHandler, MSG_STOP_THINKING).sendToTarget();
         }
 
         @Override
@@ -352,6 +306,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     private final SpeechManager.TtsListener mTtsListener = new SpeechManager.TtsListener() {
         @Override
         public void onBegin(int requestId) {
+            Util.Loge(TAG, "TTS: onBegin");
             Message.obtain(mHandler, MSG_START_SPEAKING).sendToTarget();
             if (mPersonate != null)
                 mPersonate.onTtsBegin(requestId);
@@ -359,20 +314,22 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public void onError(int requestId) {
-            // Message.obtain(mHandler, MSG_STOP_SPEAKING).sendToTarget();
+            Util.Loge(TAG, "TTS: onError");
+            Message.obtain(mHandler, MSG_STOP_SPEAKING).sendToTarget();
             if (mPersonate != null)
                 mPersonate.onTtsError(requestId);
         }
 
         @Override
         public void onEnd(int requestId) {
+            Util.Loge(TAG, "TTS: onEnd");;
             Message.obtain(mHandler, MSG_STOP_SPEAKING).sendToTarget();
             if (mPersonate != null)
                 mPersonate.onTtsEnd(requestId);
         }
     };
 
-    private class HelpAdapter extends ArrayAdapter<String> {
+    /*private class HelpAdapter extends ArrayAdapter<String> {
         private final LayoutInflater mInflater;
         private final String[] mData;
 
@@ -403,11 +360,13 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         public final class ViewHolder {
             TextView textView;
         }
-    }
+    }*/
 
     private class DialogAdapter extends BaseAdapter {
         private final int VIEW_TYPE_QUESTION = 0;
         private final int VIEW_TYPE_ANSWER = 1;
+
+        private final float MAX_TEXT_SIZE = 13 * 2 * 90; // 13 characters per line, 2 line, textsize is 90px
 
         private final LayoutInflater mInflater;
         private final List<DialogAdapter.Dialog> mDialogList;
@@ -446,7 +405,11 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                 }
             }
 
-            holder.mTextView.setText(mDialogList.get(position).mItem);
+            TextView textView = holder.mTextView;
+            TextPaint paint = textView.getPaint();
+
+            CharSequence str = TextUtils.ellipsize(mDialogList.get(position).mItem, textView.getPaint(), MAX_TEXT_SIZE, TextUtils.TruncateAt.END);
+            holder.mTextView.setText(str);
             return convertView;
         }
 
@@ -528,39 +491,16 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
-            case R.id.btn_help:
-                Util.Loge(TAG, "enter btn_help");
-                if (mHelpListView.getVisibility() == View.VISIBLE) {
-                    mHelpListView.setVisibility(View.GONE);
-                    mTitleView.setText(R.string.help_tip);
-                    view.setBackgroundResource(R.drawable.btn_help);
-                } else if (mHelpListView.getVisibility() == View.GONE) {
-                    mHelpListView.setVisibility(View.VISIBLE);
-                    mTitleView.setText(R.string.question_tip);
-                    view.setBackgroundResource(R.drawable.btn_back);
-                }
+            case R.id.btn_home_1:
+            case R.id.btn_home_2:
+                finish();
                 break;
 
-            case R.id.btn_microphone:
-                Util.Loge(TAG, "enter btn_microphone");
-                setAsrEnable(!mSpeechManager.getAsrEnable());
+            case R.id.btn_mic:
                 break;
 
-            case R.id.btn_keyboard_show:
-                Util.Loge(TAG, "enter btn_keyboard_show");
-                setAsrEnable(false);
-                mMicrophoneLayout.setVisibility(View.GONE);
-                mKeyboardLayout.setVisibility(View.VISIBLE);
-                break;
-
-            case R.id.btn_keyboard_hide:
-                Util.Loge(TAG, "enter btn_keyboard_hide");
-                mMicrophoneLayout.setVisibility(View.VISIBLE);
-                mKeyboardLayout.setVisibility(View.GONE);
-                break;
-
-            case R.id.btn_send:
-                understand();
+            case R.id.btn_question_1:
+            case R.id.btn_question_2:
                 break;
 
             default:
@@ -574,19 +514,19 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             mSpeechManager.startListening();
         } else {
             mSpeechManager.stopListening();
-            mHandler.stopStateAnimation();
-            mHandler.stopMicroPhoneAnimation(enable);
+            //mHandler.stopStateAnimation();
+            //mHandler.stopMicroPhoneAnimation(enable);
         }
     }
 
     private void understand() {
-        EditText editText = (EditText) findViewById(R.id.nlu_input);
+        /*EditText editText = (EditText) findViewById(R.id.nlu_input);
         String text = editText.getEditableText().toString();
         if (!TextUtils.isEmpty(text)) {
             mDialogAdapter.addQuestion((String) text);
             mSpeechManager.startUnderstanding(text);
             editText.setText("");
-        }
+        }*/
     }
 
     private static final int MSG_REFRESH_MICROPHONE = 0;
@@ -605,15 +545,16 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             switch (msg.what) {
                 case MSG_START_LISTENING:
                     //Util.Logd(TAG, "MSG_START_LISTENING");
-                    if (mHelpListView.getVisibility() == View.VISIBLE) {
+                    startListenAnimation();
+                    /*if (mHelpListView.getVisibility() == View.VISIBLE) {
                         mHelpListView.setVisibility(View.GONE);
-                    }
-                    startStateAnimation(R.string.listening, mListenImageList);
-                    startMicroPhoneAnimation();
+                    }*/
+                    //startStateAnimation(R.string.listening, mListenImageList);
+                    //startMicroPhoneAnimation();
                     break;
 
                 case MSG_VOLUME_CHANGED:
-                    float volume = (Float) msg.obj;
+                    /*float volume = (Float) msg.obj;
                     //Util.Logd(TAG, "MSG_VOLUME_CHANGED:" + volume);
                     int index = (int) (mMicImageList.size() / 2 / 100 * volume);
                     if (index >= mMicImageList.size()) {
@@ -621,39 +562,45 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                     } else if (index < 0) {
                         index = 0;
                     }
-                    mMicrophone.setBackground(mMicImageList.get(index));
+                    mMicrophone.setBackground(mMicImageList.get(index));*/
                     break;
                 case MSG_STOP_LISTENING:
+                    startThinkAnimation();
+                    //stopListenAnimation();
                     //Util.Logd(TAG, "MSG_STOP_LISTENING");
-                    stopStateAnimation();
-                    stopMicroPhoneAnimation(mSpeechManager.getAsrEnable());
+                    //stopStateAnimation();
+                    //stopMicroPhoneAnimation(mSpeechManager.getAsrEnable());
                     break;
 
                 case MSG_START_THINKING:
+                    //startThinkAnimation();
                     //Util.Logd(TAG, "MSG_START_THINKING");
-                    startStateAnimation(R.string.thinking, mThinkImageList);
+                    //startStateAnimation(R.string.thinking, mThinkImageList);
                     break;
 
                 case MSG_STOP_THINKING:
+                    stopThinkAnimation();
                     //Util.Logd(TAG, "MSG_STOP_THINKING");
-                    stopStateAnimation();
+                    //stopStateAnimation();
                     break;
 
                 case MSG_START_SPEAKING:
+                    startSpeakAnimation();
                     //Util.Logd(TAG, "MSG_START_SPEAKING");
-                    startStateAnimation(R.string.speaking, mSpeakImageList);
+                    //startStateAnimation(R.string.speaking, mSpeakImageList);
                     break;
 
                 case MSG_STOP_SPEAKING:
+                    stopSpeakAnimation();
                     //Util.Logd(TAG, "MSG_STOP_SPEAKING");
-                    stopStateAnimation();
+                    //stopStateAnimation();
                     break;
 
                 case MSG_REFRESH_STATE:
                 case MSG_REFRESH_MICROPHONE:
-                    Animation animation = (Animation) msg.obj;
-                    animation.play();
-                    sendMessageDelayed(Message.obtain(mHandler, msg.what, animation), animation.getFrequency());
+                    //Animation animation = (Animation) msg.obj;
+                    //animation.play();
+                    //sendMessageDelayed(Message.obtain(mHandler, msg.what, animation), animation.getFrequency());
                     break;
 
                 default:
@@ -661,39 +608,68 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             }
         }
 
+        public void startListenAnimation() {
+            mStateView.removeAllViews();
+            mStateView.addView(mListenView);
+        }
+
+        public void stopListenAnimation() {
+            mStateView.removeAllViews();
+            //mStateView.addView(mThreeBtnView);
+        }
+
+        public void startThinkAnimation() {
+            mStateView.removeAllViews();
+            mStateView.addView(mThinkView);
+            mThinkView.startThinkAnim();
+        }
+
+        public void stopThinkAnimation() {
+            mThinkView.stopThinkAnim();
+        }
+
+        public void startSpeakAnimation() {
+            mStateView.removeAllViews();
+            mStateView.addView(mSpeakView);
+        }
+
+        public void stopSpeakAnimation() {
+            mStateView.removeAllViews();
+        }
+
         public void startMicroPhoneAnimation() {
-            removeMessages(MSG_REFRESH_MICROPHONE);
+            /*removeMessages(MSG_REFRESH_MICROPHONE);
             Message.obtain(this, MSG_REFRESH_MICROPHONE, new Animation(mMicrophone, mMicImageList).setFrequency(200))
-                    .sendToTarget();
+                    .sendToTarget();*/
         }
 
         public void stopMicroPhoneAnimation(boolean enableAsr) {
-            removeMessages(MSG_REFRESH_MICROPHONE);
+            //removeMessages(MSG_REFRESH_MICROPHONE);
             if (enableAsr) {
-                mMicrophone.setBackgroundResource(R.drawable.mic_00);
+                //mMicrophone.setBackgroundResource(R.drawable.mic_00);
             } else {
-                mMicrophone.setBackgroundResource(R.drawable.btn_microphone_click);
+                //mMicrophone.setBackgroundResource(R.drawable.btn_microphone_click);
             }
         }
 
-        public void startStateAnimation(int tipId, List<Drawable> imageList) {
-            findViewById(R.id.btn_help).setVisibility(View.GONE);
-            mTitleView.setText(tipId);
+        public void startStateAnimation() {
+            //findViewById(R.id.btn_help).setVisibility(View.GONE);
+            //mTitleView.setText(tipId);
 
-            startStateAnimation(mState, imageList, 100);
+            //startStateAnimation(mState, imageList, 100);
         }
 
         public void startStateAnimation(View view, List<Drawable> imageList, int frequency) {
-            removeMessages(MSG_REFRESH_STATE);
-            Message.obtain(this, MSG_REFRESH_STATE, new Animation(view, imageList).setFrequency(frequency))
-                    .sendToTarget();
+            //removeMessages(MSG_REFRESH_STATE);
+            /*Message.obtain(this, MSG_REFRESH_STATE, new Animation(view, imageList).setFrequency(frequency))
+                    .sendToTarget();*/
         }
 
         public void stopStateAnimation() {
-            removeMessages(MSG_REFRESH_STATE);
-            findViewById(R.id.btn_help).setVisibility(View.VISIBLE);
-            mTitleView.setText(R.string.help_tip);
-            mState.setBackgroundResource(R.drawable.speech_00);
+            //removeMessages(MSG_REFRESH_STATE);
+            //findViewById(R.id.btn_help).setVisibility(View.VISIBLE);
+            //mTitleView.setText(R.string.help_tip);
+            //mState.setBackgroundResource(R.drawable.speech_00);
         }
     };
 

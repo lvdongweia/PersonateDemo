@@ -9,6 +9,7 @@
     <string name="listening">I am listening,please go on...</string>
     <string name="thinking">This question needs to think about,please wait for a moment...</string>
     <string name="speaking">Please listen patiently to explain...</string>
+    <string name="wave">Show voice wave animation here</string>
 
     <string-array name="help_array" translatable="false">
         <item>What\'s the date today?</item>

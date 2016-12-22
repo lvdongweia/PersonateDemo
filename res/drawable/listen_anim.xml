@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="false">
+    <item android:drawable="@drawable/listen_00" android:duration="80" />
+    <item android:drawable="@drawable/listen_01" android:duration="80" />
+    <item android:drawable="@drawable/listen_02" android:duration="80" />
+    <item android:drawable="@drawable/listen_03" android:duration="80" />
+    <item android:drawable="@drawable/listen_04" android:duration="80" />
+    <item android:drawable="@drawable/listen_05" android:duration="80" />
+    <item android:drawable="@drawable/listen_06" android:duration="80" />
+    <item android:drawable="@drawable/listen_07" android:duration="80" />
+    <item android:drawable="@drawable/listen_08" android:duration="80" />
+    <item android:drawable="@drawable/listen_09" android:duration="80" />
+    <item android:drawable="@drawable/listen_10" android:duration="80" />
+    <item android:drawable="@drawable/listen_11" android:duration="80" />
+    <item android:drawable="@drawable/listen_12" android:duration="80" />
+    <item android:drawable="@drawable/listen_13" android:duration="80" />
+    <item android:drawable="@drawable/listen_14" android:duration="80" />
+    <item android:drawable="@drawable/listen_15" android:duration="80" />
+    <item android:drawable="@drawable/listen_16" android:duration="80" />
+    <item android:drawable="@drawable/listen_17" android:duration="80" />
+    <item android:drawable="@drawable/listen_18" android:duration="80" />
+    <item android:drawable="@drawable/listen_19" android:duration="80" />
+    <item android:drawable="@drawable/listen_20" android:duration="80" />
+    <item android:drawable="@drawable/listen_21" android:duration="80" />
+    <item android:drawable="@drawable/listen_22" android:duration="80" />
+    <item android:drawable="@drawable/listen_23" android:duration="80" />
+    <item android:drawable="@drawable/listen_24" android:duration="80" />
+
+</animation-list>

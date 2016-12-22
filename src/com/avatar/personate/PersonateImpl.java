@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.provider.Settings;
 
 import com.avatar.personate.scene.DefaultScene;
 import com.avatar.personate.scene.PersonateScene;

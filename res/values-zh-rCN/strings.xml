@@ -9,6 +9,7 @@
     <string name="listening">我正在听, 请继续...</string>
     <string name="thinking">这个问题需要思考一下, 请稍等...</string>
     <string name="speaking">请耐心倾听讲解...</string>
+    <string name="wave">此处应显示声波动画</string>
 
     <string-array name="help_array" translatable="false">
         <item>今天是几月几日</item>
