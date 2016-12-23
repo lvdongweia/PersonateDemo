@@ -10,6 +10,7 @@ import android.widget.RelativeLayout;
 
 
 public class ListeningView extends RelativeLayout {
+    private final String TAG = "ListeningView";
     private ImageView mListenView;
     private AnimationDrawable mListenAnim;
 
@@ -24,13 +25,17 @@ public class ListeningView extends RelativeLayout {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        mListenView.setImageResource(R.drawable.listen_anim);
+        mListenAnim = (AnimationDrawable) mListenView.getDrawable();
         mListenAnim.start();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        mListenAnim = (AnimationDrawable) mListenView.getDrawable();
         mListenAnim.stop();
+        mListenView.setBackground(null);
     }
 
     @Override
@@ -38,7 +43,7 @@ public class ListeningView extends RelativeLayout {
         super.onFinishInflate();
 
         mListenView = (ImageView) findViewById(R.id.anim_listen);
-        mListenView.setBackgroundResource(R.drawable.listen_anim);
-        mListenAnim = (AnimationDrawable) mListenView.getBackground();
+        mListenView.setImageResource(R.drawable.listen_anim);
+        mListenAnim = (AnimationDrawable) mListenView.getDrawable();
     }
 }

@@ -53,8 +53,8 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         setContentView(R.layout.ai_dialog);
 
         // TODO use mic-2
-        SchedulerManager scm = (SchedulerManager) getSystemService(Context.SCHEDULER_SERVICE);
-        scm.setMicroPhoneType(SchedulerManager.MICROPHONE_ARRAY);
+        //SchedulerManager scm = (SchedulerManager) getSystemService(Context.SCHEDULER_SERVICE);
+        //scm.setMicroPhoneType(SchedulerManager.MICROPHONE_ARRAY);
 
         mStateView = (FrameLayout) findViewById(R.id.state_view);
         mListenView = (ListeningView) getLayoutInflater().inflate(R.layout.listening_view, null);

@@ -27,6 +27,7 @@ public abstract class PersonateScene {
     public static final int MSG_TOUCH_EVENT = 4;
     public static final int MSG_IDLE_CHECK  = 5;
     public static final int MSG_IDLE_ACTION = 6;
+    public static final int MSG_HAND_COVER_DETECT = 7;
 
     protected static final int MSG_START_FACE_TRACK = 5;
 

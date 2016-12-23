@@ -13,7 +13,15 @@ LOCAL_PACKAGE_NAME := PersonateDemo
 LOCAL_CERTIFICATE := platform
 LOCAL_DEX_EXPORT := false
 
-LOCAL_PROGUARD_ENABLED := disabled
+LOCAL_REQUIRED_MODULES := \
+
+
 
 include $(BUILD_PACKAGE)
 
+####################################################
+
+include $(CLEAR_VARS)
+LOCAL_PREBUILT_LIBS := lib/libhandcover.so
+LOCAL_MODULE_TAGS := optional
+include $(BULID_MULTI_PREBUILT)

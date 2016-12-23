@@ -29,6 +29,7 @@ import com.avatar.robot.Robot;
 
 import com.avatar.personate.R;
 import com.avatar.robot.util.SystemMotion;
+import com.avatarmind.vision.cover.handcover;
 
 
 public class DefaultScene extends PersonateScene {
@@ -41,9 +42,13 @@ public class DefaultScene extends PersonateScene {
 
     private final int STATE_ACTIVE = 0;
     private final int STATE_IDLE = 1;
-    private final long IDLE_TIME = 30 * 1000; //ms
+    private final long IDLE_TIME = 5 * 60 * 1000; //ms
+    private final long COVER_FREQ = 2 * 1000; //ms
+
+    private int mHandCoverCount;
     private volatile int mState = STATE_ACTIVE;
     private long mLastActiveTime = System.currentTimeMillis();
+    private long mLastHandCoverDetect = System.currentTimeMillis();
 
     public DefaultScene(Context context) {
         super(context, SCENE_DEFAULT);
@@ -80,6 +85,7 @@ public class DefaultScene extends PersonateScene {
     @Override
     public void start() {
         mIsWorking = true;
+        mState = STATE_ACTIVE;
         registerEvent();
 
         randomActionReset();
@@ -117,7 +123,7 @@ public class DefaultScene extends PersonateScene {
                     }
 
                     // 重新启动人脸检测
-                    startFaceTrack();
+                    mFaceTrack.resumeFaceDetect();
 
                     // 延后检查是否为idle状态
                     mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
@@ -147,7 +153,8 @@ public class DefaultScene extends PersonateScene {
                 if (diff > IDLE_TIME) {
                     mState = STATE_IDLE;
                     Util.Logd(TAG, "#######Enter idle state");
-                    stopFaceTrack();
+
+                    mFaceTrack.pauseFaceDetect();
                     mHandler.sendEmptyMessage(MSG_IDLE_ACTION);
                 } else {
                     // 延后检查是否为idle状态
@@ -160,6 +167,31 @@ public class DefaultScene extends PersonateScene {
                     mIdleMotionThread = new Thread(mIdleRunnable);
                     mIdleMotionThread.start();
                 }
+                break;
+
+            case MSG_HAND_COVER_DETECT:
+                // hand cover detect
+                String hand = handcover.detectcover((byte[])msg.obj, FaceTrack.WIDTH, FaceTrack.HEIGHT);
+                if (hand.equals("COVER")) {
+                    Util.Logd(TAG, "Hand cover:" + hand);
+                    long coverTime = System.currentTimeMillis();
+                    if (mHandCoverCount == 0) {
+                        mLastHandCoverDetect = coverTime;
+                    }
+
+                    if ((coverTime - mLastHandCoverDetect) <= COVER_FREQ) {
+                        mHandCoverCount++;
+                    } else {
+                        mHandCoverCount = 0;
+                    }
+
+                    if (mHandCoverCount > 4) {
+                        mSpeechManager.startUnderstanding("你好");
+                        mRobotCtl.doAction(SystemMotion.WAVE, 1, 3000);
+                        mHandCoverCount = 0;
+                    }
+                }
+
                 break;
 
             default:
@@ -340,22 +372,24 @@ public class DefaultScene extends PersonateScene {
         @Override
         public void onWakeUp(int angle) {
             int headPos = mFaceTrack.getNowRotateAngle();
-            //mFaceTrack.setNowRotateAngle(0);
+
+            mFaceTrack.setNowRotateAngle(0);
             int turnAngle = 0;
             if (angle <= 180) {
-                //turnAngle = angle + headPos;
-                turnAngle = angle;
+                turnAngle = angle - headPos;
                 mRobotCtl.turn(turnAngle, 2);
             }
             else if (angle < 360) {
-                //turnAngle = angle - 360 + headPos;
-                turnAngle = angle - 360;
+                turnAngle = -((360 - angle) + headPos);
                 mRobotCtl.turn(turnAngle, 2);
             }
 
             Util.Logd(TAG, "onWakeUp:" + angle + " headPos: " + headPos + "  Real Rotate:" + turnAngle);
 
-            mAudioManager.setMicArrayOrientation(AudioManager.MIC_ARRAY_ORI_0_360);
+            boolean isSuc = mAudioManager.setMicArrayOrientation(AudioManager.MIC_ARRAY_ORI_0_360);
+            if (!isSuc) {
+                Util.Logd(TAG, "setMicArrayOrientation 0 fail");
+            }
         }
     };
 
@@ -422,8 +456,8 @@ public class DefaultScene extends PersonateScene {
 
     private class FaceTrack implements Camera.PreviewCallback {
 
-        private final int WIDTH = 640;
-        private final int HEIGHT = 480;
+        public static final int WIDTH = 640;
+        public static final int HEIGHT = 480;
         private final int MAX_FACES = 2;
         private final int OR_NEGT = -1;
         private final int OR_POST = 1;
@@ -437,6 +471,7 @@ public class DefaultScene extends PersonateScene {
         private RobotMotion mFaceCtl;
 
         private boolean mIsTracking;
+        private boolean mIsPause;
         private double mRotateParam;
         private double mTiltParam;
 
@@ -503,7 +538,7 @@ public class DefaultScene extends PersonateScene {
                 //mCamera.setPreviewCallback(this);
 
             } catch (Exception e) {
-                Util.Logd(TAG, e.getMessage());
+                Util.Logd(TAG, "Exception:" + e.getMessage());
                 if (mCamera != null) {
                     mCamera.release();
                     mCamera = null;
@@ -536,6 +571,7 @@ public class DefaultScene extends PersonateScene {
             if (mCamera != null) {
                 mIsTracking = true;
                 mIsIdle = true;
+                mIsPause = false;
                 mCamera.setPreviewCallback(this);
                 mCamera.startPreview();
             }
@@ -552,6 +588,14 @@ public class DefaultScene extends PersonateScene {
 
                 mIsTracking = false;
             }
+        }
+
+        public void pauseFaceDetect() {
+            mIsPause = true;
+        }
+
+        public void resumeFaceDetect() {
+            mIsPause = false;
         }
 
         public boolean isTracking() {
@@ -573,10 +617,19 @@ public class DefaultScene extends PersonateScene {
             mTiltParam = focusDistance / HEIGHT;
         }
 
-        private void neckTilt(int angle, int orientation) {
+        private boolean neckTilt(int angle, int orientation) {
             angle *= orientation;
             mNowTiltAngle += angle;
-            mSessionId = mFaceCtl.runMotor(RobotMotion.Motors.NECK_TILT, mNowTiltAngle, 500, 0);
+
+            if (mNowTiltAngle > 25 || mNowTiltAngle < -15) {
+                mNowTiltAngle -= angle;
+                return false;
+            }
+
+            Util.Logd(TAG, "neckTilt: angle=" + angle + "  mNowTiltAngle=" + mNowTiltAngle);
+            mFaceCtl.runMotor(RobotMotion.Motors.NECK_TILT, mNowTiltAngle, 500, 0);
+            //mSessionId =
+            return true;
         }
 
         private void neckRotate(int angle, int orientation) {
@@ -618,6 +671,14 @@ public class DefaultScene extends PersonateScene {
                             Util.Logd(TAG, "!!!!!!yuvData is null");
                             break;
                         }
+                        // hand cover
+                        mHandler.obtainMessage(MSG_HAND_COVER_DETECT, yuvData).sendToTarget();
+
+                        if (mIsPause) {
+                            mIsIdle = true;
+                            break;
+                        }
+
                         Bitmap imgBmp = decodeYUV420SP(yuvData, WIDTH, HEIGHT);
                         //saveBitmap(imgBmp);
                         long end = System.currentTimeMillis();
@@ -640,25 +701,37 @@ public class DefaultScene extends PersonateScene {
                             or = dis < 0 ? OR_POST : OR_NEGT;
                             //grad = Math.atan(Math.abs(dis) / mRotateParam);
                             //degree = Math.toDegrees(grad);
-                            //Util.Logd(TAG, "Tilt height:" + dis);
-                            if (Math.abs(dis) > 0.2) {
-                                neckTilt((int) 5, or);
+                            Util.Logd(TAG, "Tilt height:" + dis);
+                            // check if need neck tilt
+                            boolean bneckTilt = false;
+                            if (Math.abs(dis) > 0.15) {
+                                if (neckTilt((int)5, or)) {
+                                    bneckTilt = true;
+                                }
+                            }
+
+                            dis = mid.x / WIDTH - 0.5;
+                            or = dis > 0 ? OR_POST : OR_NEGT;
+                            grad = Math.atan(Math.abs(dis) / mRotateParam);
+                            degree = Math.toDegrees(grad);
+                            if (or == OR_POST) {
+                                degree -= 2;
                             } else {
-                                dis = mid.x / WIDTH - 0.5;
-                                or = dis > 0 ? OR_POST : OR_NEGT;
-                                grad = Math.atan(Math.abs(dis) / mRotateParam);
-                                degree = Math.toDegrees(grad);
-                                if (or == OR_POST) {
-                                    degree -= 2;
-                                } else {
-                                    degree += 2;
+                                degree += 2;
+                            }
+                            //Util.Logd(TAG, "Rotate Degree:" + degree*or);
+                            if (Math.abs(degree) > 5.0f) {
+                                neckRotate((int) degree, or);
+                            } else {
+                                if (bneckTilt) {
+                                    try {
+                                        Thread.sleep(200);
+                                    } catch (InterruptedException e) {
+                                        // ignore
+                                    }
                                 }
-                                //Util.Logd(TAG, "Rotate Degree:" + degree*or);
-                                if (Math.abs(degree) > 5.0f) {
-                                    neckRotate((int)degree, or);
-                                } else {
-                                    mIsIdle = true;
-                                }
+
+                                mIsIdle = true;
                             }
                         }
                         break;
