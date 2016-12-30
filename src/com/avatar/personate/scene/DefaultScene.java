@@ -30,25 +30,32 @@ import com.avatar.robot.Robot;
 import com.avatar.personate.R;
 import com.avatar.robot.util.SystemMotion;
 import com.avatarmind.vision.cover.handcover;
+import com.avatarmind.vision.wave.handwave;
 
 
 public class DefaultScene extends PersonateScene {
     private final String TAG = "DefaultScene";
-    private Map<Integer, String[]> mMoodMap;
-    private FaceTrack mFaceTrack;
-    private RobotMotion mRobotCtl;
-    private AudioManager mAudioManager;
-    private boolean mIsPersonNearby;
 
     private final int STATE_ACTIVE = 0;
     private final int STATE_IDLE = 1;
     private final long IDLE_TIME = 5 * 60 * 1000; //ms
-    private final long COVER_FREQ = 2 * 1000; //ms
+    private final long COVER_FREQ = 6 * 1000; //ms
 
-    private int mHandCoverCount;
-    private volatile int mState = STATE_ACTIVE;
+    private Map<Integer, String[]> mMoodMap;
+
+    private RobotMotion mRobotCtl;
+    private AudioManager mAudioManager;
+    private CameraEvent mCameraEvent;
+
+    private int mState = STATE_ACTIVE;
+    private boolean mIsPersonNearby;
     private long mLastActiveTime = System.currentTimeMillis();
-    private long mLastHandCoverDetect = System.currentTimeMillis();
+    private long mLastHandEventTime = System.currentTimeMillis();
+    private long mLastPeopleTime = System.currentTimeMillis();
+    private String mPeopleName;
+    private int mTurnSession;
+    private boolean mIsTurning;
+
 
     public DefaultScene(Context context) {
         super(context, SCENE_DEFAULT);
@@ -71,29 +78,36 @@ public class DefaultScene extends PersonateScene {
 
             @Override
             public void onCompleted(int session_id, int result) {
-                //Util.Logd(TAG, "onCompleted");
+                if (mIsTurning && session_id == mTurnSession) {
+                    mIsTurning = false;
+                    Util.Logd(TAG, "Turn Over.");
+                    mHandler.sendEmptyMessage(MSG_SAY_HELLO);
+                }
             }
         });
 
-        //start face track
-        mFaceTrack = new FaceTrack();
+        mCameraEvent = CameraEvent.getInstance(context);
+        mCameraEvent.setListener(mListener);
 
         // 延后检查是否为idle状态
         mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
+
+        File AppDir = context.getDir("cascade", Context.MODE_PRIVATE);
+        String strAppPath = AppDir.getAbsolutePath();
+        handwave.nativeInitial(strAppPath);
     }
 
     @Override
-    public void start() {
+    public void startScene() {
         mIsWorking = true;
+        mIsTurning = false;
         mState = STATE_ACTIVE;
-        registerEvent();
-
         randomActionReset();
-        startFaceTrack();
+        registerEvent();
     }
 
     @Override
-    public void stop() {
+    public void stopScene() {
         mIsWorking = false;
         if (mIdleMotionThread != null) {
             mIdleMotionThread.interrupt();
@@ -102,16 +116,35 @@ public class DefaultScene extends PersonateScene {
         unregisterEvent();
         mHandler.removeMessages(MSG_IDLE_ACTION);
         mHandler.removeMessages(MSG_IDLE_CHECK);
-
-        // stop to prevent not get leave event
-        stopFaceTrack();
+        randomActionReset();
     }
+
+    private final CameraEvent.CameraEventListener mListener = new CameraEvent.CameraEventListener() {
+
+        @Override
+        public void onHandWave() {
+            //Util.Logd(TAG, "******onHandWave");
+            mHandler.obtainMessage(MSG_HAND_WAVE_DETECT).sendToTarget();
+        }
+
+        @Override
+        public void onHandCover() {
+            //Util.Logd(TAG, "******onHandCover");
+            mHandler.obtainMessage(MSG_HAND_COVER_DETECT).sendToTarget();
+        }
+
+        @Override
+        public void onFaceRecognize(String name) {
+            //Util.Logd(TAG, "******onFaceRecognize:" + name);
+            mHandler.obtainMessage(MSG_FACE_RECONGIZE, name).sendToTarget();
+        }
+    };
 
     @Override
     public void handleMessageInner(Message msg) {
         if (!mIsWorking) return;
 
-        Util.Logd(TAG, "Message:" + msg.what);
+        long time;
         switch (msg.what) {
             case MSG_NLU_EVENT:
                 mLastActiveTime = System.currentTimeMillis();
@@ -122,11 +155,9 @@ public class DefaultScene extends PersonateScene {
                         mIdleMotionThread.interrupt();
                     }
 
-                    // 重新启动人脸检测
-                    mFaceTrack.resumeFaceDetect();
-
-                    // 延后检查是否为idle状态
-                    mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
+                    // 重启事件检测
+                    mCameraEvent.setFaceDetect(true);
+                    mCameraEvent.setHandCover(true);
                 }
 
                 doNluResponse(msg.arg1, (String) msg.obj);
@@ -150,11 +181,12 @@ public class DefaultScene extends PersonateScene {
 
             case MSG_IDLE_CHECK:
                 long diff = System.currentTimeMillis() - mLastActiveTime;
-                if (diff > IDLE_TIME) {
-                    mState = STATE_IDLE;
+                if (diff >= IDLE_TIME) {
                     Util.Logd(TAG, "#######Enter idle state");
-
-                    mFaceTrack.pauseFaceDetect();
+                    mState = STATE_IDLE;
+                    //暂停事件检测
+                    mCameraEvent.setFaceDetect(false);
+                    mCameraEvent.setHandCover(false);
                     mHandler.sendEmptyMessage(MSG_IDLE_ACTION);
                 } else {
                     // 延后检查是否为idle状态
@@ -170,28 +202,43 @@ public class DefaultScene extends PersonateScene {
                 break;
 
             case MSG_HAND_COVER_DETECT:
-                // hand cover detect
-                String hand = handcover.detectcover((byte[])msg.obj, FaceTrack.WIDTH, FaceTrack.HEIGHT);
-                if (hand.equals("COVER")) {
-                    Util.Logd(TAG, "Hand cover:" + hand);
-                    long coverTime = System.currentTimeMillis();
-                    if (mHandCoverCount == 0) {
-                        mLastHandCoverDetect = coverTime;
-                    }
+                if (mIsTurning) return;
 
-                    if ((coverTime - mLastHandCoverDetect) <= COVER_FREQ) {
-                        mHandCoverCount++;
-                    } else {
-                        mHandCoverCount = 0;
-                    }
-
-                    if (mHandCoverCount > 4) {
-                        mSpeechManager.startUnderstanding("你好");
-                        mRobotCtl.doAction(SystemMotion.WAVE, 1, 3000);
-                        mHandCoverCount = 0;
-                    }
+                mHandler.removeMessages(MSG_HAND_COVER_DETECT);
+                time = System.currentTimeMillis();
+                if ((time - mLastHandEventTime) > COVER_FREQ) {
+                    String strCover = mContext.getString(R.string.cover_eye);
+                    startSpeaking(strCover);
+                    mLastHandEventTime = time;
                 }
+                break;
+            case MSG_HAND_WAVE_DETECT:
+                if (mIsTurning) return;
 
+                mHandler.removeMessages(MSG_HAND_WAVE_DETECT);
+                time = System.currentTimeMillis();
+                String dontKnow = mContext.getString(R.string.noknow);
+                if ((time - mLastHandEventTime) > COVER_FREQ) {
+                    if (mPeopleName == null || (time - mLastPeopleTime) > 2 * COVER_FREQ) {
+                        startSpeaking(dontKnow);
+                        mPeopleName = null;
+                    } else {
+                        String know = mContext.getString(R.string.hi) + mPeopleName;
+                        mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
+                        startSpeaking(know);
+                    }
+                    mLastHandEventTime = time;
+                }
+                break;
+            case MSG_FACE_RECONGIZE:
+                mLastPeopleTime = System.currentTimeMillis();
+                mPeopleName = (String)msg.obj;
+                break;
+
+            case MSG_SAY_HELLO:
+                String strCover = mContext.getString(R.string.hello);
+                mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
+                startSpeaking(strCover);
                 break;
 
             default:
@@ -219,11 +266,29 @@ public class DefaultScene extends PersonateScene {
         registerRCEvent(intent);
 
         mContext.registerReceiver(mEventReceiver, intent);
+
+        // start detect camera event
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (mCameraEvent.init()) {
+                    try {
+                        Thread.sleep(1000);
+                        mCameraEvent.start();
+                    } catch (InterruptedException e) {
+                        // ignore
+                    }
+                }
+            }
+        }).start();
     }
 
     private void unregisterEvent() {
         mAudioManager.removeMicArrayEventListener(mContext.getPackageName());
         mContext.unregisterReceiver(mEventReceiver);
+
+        mCameraEvent.stop();
+        mCameraEvent.uninit();
     }
 
     private void loadMoodResource() {
@@ -300,15 +365,11 @@ public class DefaultScene extends PersonateScene {
             case RobotConstants.RC_APPROACH_FAST:
                 if (pos == RobotConstants.EVENT_FRONT && !mIsPersonNearby) {
                     mIsPersonNearby = true;
-                    mSpeechManager.startUnderstanding(mContext.getString(R.string.hello));
-                    //startFaceTrack();
                 }
                 break;
 
             case RobotConstants.RC_GO_AWAY:
                 if (pos == RobotConstants.EVENT_FRONT && mIsPersonNearby) {
-                    //stopFaceTrack();
-                    mSpeechManager.startUnderstanding(mContext.getString(R.string.bye));
                     mIsPersonNearby = false;
                 }
                 break;
@@ -320,20 +381,6 @@ public class DefaultScene extends PersonateScene {
         }
     }
 
-    private void startFaceTrack() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (mFaceTrack.init())
-                    mFaceTrack.start();
-            }
-        }).start();
-    }
-
-    private void stopFaceTrack() {
-        mFaceTrack.stop();
-        mFaceTrack.uninit();
-    }
 
     private void doNluResponse(int requestId, String text) {
         int expression_id = -1;
@@ -371,20 +418,33 @@ public class DefaultScene extends PersonateScene {
     private final AudioManager.MicArrayEventListener mMicArraryEvent = new AudioManager.MicArrayEventListener() {
         @Override
         public void onWakeUp(int angle) {
-            int headPos = mFaceTrack.getNowRotateAngle();
+            if (mIsTurning) return;
 
-            mFaceTrack.setNowRotateAngle(0);
+            int headPos = mCameraEvent.getNeckRotateAngle();
+            Util.Logd(TAG, "##Mic ORI:" + angle + "  Head:" + headPos + "##");
+
             int turnAngle = 0;
             if (angle <= 180) {
                 turnAngle = angle - headPos;
-                mRobotCtl.turn(turnAngle, 2);
             }
-            else if (angle < 360) {
+            else {
+                // angle <= 360
                 turnAngle = -((360 - angle) + headPos);
-                mRobotCtl.turn(turnAngle, 2);
             }
 
-            Util.Logd(TAG, "onWakeUp:" + angle + " headPos: " + headPos + "  Real Rotate:" + turnAngle);
+            if (CameraEvent.HEAD_LEFT_MAX <= turnAngle && turnAngle <= CameraEvent.HEAD_RIGHT_MAX) {
+                headPos = -turnAngle;
+                turnAngle = 0;
+            } else {
+                headPos = 0;
+            }
+
+            if (turnAngle != 0) {
+                mIsTurning = true;
+                mTurnSession = mRobotCtl.turn(turnAngle, 2);
+            }
+            mCameraEvent.setNeckRotateAngle(headPos);
+            Util.Logd(TAG, "##HeadPos:" + headPos + "  WheelPos:" + turnAngle + "##");
 
             boolean isSuc = mAudioManager.setMicArrayOrientation(AudioManager.MIC_ARRAY_ORI_0_360);
             if (!isSuc) {
@@ -449,362 +509,4 @@ public class DefaultScene extends PersonateScene {
         mRobotCtl.reset(RobotMotion.Units.ALL);
     }
 
-    /**
-     *  Face Tracker
-     */
-    private static final int MSG_FACE_DECODE = 0;
-
-    private class FaceTrack implements Camera.PreviewCallback {
-
-        public static final int WIDTH = 640;
-        public static final int HEIGHT = 480;
-        private final int MAX_FACES = 2;
-        private final int OR_NEGT = -1;
-        private final int OR_POST = 1;
-
-
-        private byte[] mCallbackBuf;
-        private Handler mFaceHandler;
-        private Camera mCamera;
-        private SurfaceTexture mSurfaceTexture;
-        private FaceDetector mFaceDetector;
-        private RobotMotion mFaceCtl;
-
-        private boolean mIsTracking;
-        private boolean mIsPause;
-        private double mRotateParam;
-        private double mTiltParam;
-
-        private volatile boolean mIsIdle;
-        private int mSessionId;
-        private int mNowRotateAngle = 0;
-        private int mNowTiltAngle = 0;
-
-        public FaceTrack() {
-            mFaceCtl = new RobotMotion();
-            mFaceCtl.setListener(mListener);
-
-            getFocusDistance();
-            mFaceDetector = new FaceDetector(WIDTH, HEIGHT, MAX_FACES);
-
-            // reset head position
-            setNowRotateAngle(0);
-        }
-
-        private final RobotMotion.Listener mListener = new RobotMotion.Listener() {
-
-            @Override
-            public void onStatusChanged(int status) {
-
-            }
-
-            @Override
-            public void onCompleted(int session_id, int result) {
-                //Util.Logd(TAG, "onCompleted:" + session_id);
-                if (mSessionId == session_id) {
-                    mIsIdle = true;
-                }
-            }
-        };
-
-        public int getNowRotateAngle() {
-            return mNowRotateAngle;
-        }
-
-        public void setNowRotateAngle(int angle) {
-            mIsIdle = false;
-            mNowRotateAngle = angle;
-            mSessionId = mFaceCtl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 500, 0);
-        }
-
-        public boolean init() {
-            try {
-                mCamera = Camera.open(0);
-                if (mCamera == null) {
-                    Util.Logd(TAG, "Open camera(0) failed.");
-                    return false;
-                }
-
-                mSurfaceTexture = new SurfaceTexture(10);
-                mCamera.setPreviewTexture(mSurfaceTexture);
-
-                Camera.Parameters param = mCamera.getParameters();
-                param.setPreviewSize(WIDTH, HEIGHT);
-                mCamera.setParameters(param);
-
-                //int bufSize = (WIDTH * HEIGHT) * ImageFormat.getBitsPerPixel(param.getPreviewFormat()) / 8;
-                //mCallbackBuf = new byte[bufSize];
-                //mCamera.setPreviewCallbackWithBuffer(this);
-                //mCamera.setPreviewCallback(this);
-
-            } catch (Exception e) {
-                Util.Logd(TAG, "Exception:" + e.getMessage());
-                if (mCamera != null) {
-                    mCamera.release();
-                    mCamera = null;
-                    return false;
-                }
-            }
-
-            HandlerThread faceThread = new HandlerThread("Face track");
-            faceThread.start();
-            mFaceHandler = new FaceHandler(faceThread.getLooper());
-
-            return true;
-        }
-
-        public void uninit() {
-            if (mCamera != null) {
-                if (mIsTracking)
-                    this.stop();
-
-                mCamera.release();
-
-                mCallbackBuf = null;
-                mCamera = null;
-
-                mFaceHandler.getLooper().quit();
-            }
-        }
-
-        public void start() {
-            if (mCamera != null) {
-                mIsTracking = true;
-                mIsIdle = true;
-                mIsPause = false;
-                mCamera.setPreviewCallback(this);
-                mCamera.startPreview();
-            }
-        }
-
-        public void stop() {
-            if (mCamera != null) {
-                mCamera.setPreviewCallback(null);
-                mCamera.stopPreview();
-
-                // reset
-                mFaceCtl.runMotor(RobotMotion.Motors.NECK_ROTATION, 0, 500, 0);
-                mFaceCtl.runMotor(RobotMotion.Motors.NECK_TILT, 0, 500, 0);
-
-                mIsTracking = false;
-            }
-        }
-
-        public void pauseFaceDetect() {
-            mIsPause = true;
-        }
-
-        public void resumeFaceDetect() {
-            mIsPause = false;
-        }
-
-        public boolean isTracking() {
-            return mIsTracking;
-        }
-
-        private void getFocusDistance() {
-            //test camera preview size(320x240)
-            //double width = 320.0;
-
-            //test angle 25 ~ 30 degree
-            double angle = 28.0;
-
-            double focusDistance = (WIDTH / 2.0) / Math.tan(Math.toRadians(angle));
-            mRotateParam = focusDistance / WIDTH;
-
-            angle = 16.0;
-            focusDistance = (HEIGHT / 2.0) / Math.tan(Math.toRadians(angle));
-            mTiltParam = focusDistance / HEIGHT;
-        }
-
-        private boolean neckTilt(int angle, int orientation) {
-            angle *= orientation;
-            mNowTiltAngle += angle;
-
-            if (mNowTiltAngle > 25 || mNowTiltAngle < -15) {
-                mNowTiltAngle -= angle;
-                return false;
-            }
-
-            Util.Logd(TAG, "neckTilt: angle=" + angle + "  mNowTiltAngle=" + mNowTiltAngle);
-            mFaceCtl.runMotor(RobotMotion.Motors.NECK_TILT, mNowTiltAngle, 500, 0);
-            //mSessionId =
-            return true;
-        }
-
-        private void neckRotate(int angle, int orientation) {
-            angle *= orientation;
-            mNowRotateAngle += angle;
-
-            if (mNowRotateAngle > 25 || mNowRotateAngle < -25) {
-                mSessionId = mFaceCtl.turn(-10*orientation, 2);
-                mNowRotateAngle -= angle;
-            } else {
-                mSessionId = mFaceCtl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 500, 0);
-            }
-
-            //Util.Logd(TAG, "mNowAngle:" + mNowRotateAngle);
-        }
-
-        @Override
-        public void onPreviewFrame(byte[] data, Camera camera) {
-            //Util.Logd(TAG, "onPreviewFrame");
-
-            if (mIsTracking && mIsIdle) {
-                mIsIdle = false;
-                mFaceHandler.obtainMessage(MSG_FACE_DECODE, data).sendToTarget();
-            }
-        }
-
-        private class FaceHandler extends Handler {
-
-            public FaceHandler(Looper looper) {
-                super(looper);
-            }
-
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case MSG_FACE_DECODE:
-                        final byte[] yuvData = (byte[]) msg.obj;
-                        if (yuvData == null) {
-                            Util.Logd(TAG, "!!!!!!yuvData is null");
-                            break;
-                        }
-                        // hand cover
-                        mHandler.obtainMessage(MSG_HAND_COVER_DETECT, yuvData).sendToTarget();
-
-                        if (mIsPause) {
-                            mIsIdle = true;
-                            break;
-                        }
-
-                        Bitmap imgBmp = decodeYUV420SP(yuvData, WIDTH, HEIGHT);
-                        //saveBitmap(imgBmp);
-                        long end = System.currentTimeMillis();
-
-                        FaceDetector.Face[] faces = new FaceDetector.Face[MAX_FACES];
-                        int count = mFaceDetector.findFaces(imgBmp, faces);
-                        if (count < 1 || faces[0].confidence() < FaceDetector.Face.CONFIDENCE_THRESHOLD) {
-                            mIsIdle = true;
-                        } else {
-                            // rotate head
-                            PointF mid = new PointF();
-                            faces[0].getMidPoint(mid);
-
-                            int or;
-                            double dis;
-                            double grad;
-                            double degree;
-
-                            dis = mid.y / HEIGHT - 0.5;
-                            or = dis < 0 ? OR_POST : OR_NEGT;
-                            //grad = Math.atan(Math.abs(dis) / mRotateParam);
-                            //degree = Math.toDegrees(grad);
-                            Util.Logd(TAG, "Tilt height:" + dis);
-                            // check if need neck tilt
-                            boolean bneckTilt = false;
-                            if (Math.abs(dis) > 0.15) {
-                                if (neckTilt((int)5, or)) {
-                                    bneckTilt = true;
-                                }
-                            }
-
-                            dis = mid.x / WIDTH - 0.5;
-                            or = dis > 0 ? OR_POST : OR_NEGT;
-                            grad = Math.atan(Math.abs(dis) / mRotateParam);
-                            degree = Math.toDegrees(grad);
-                            if (or == OR_POST) {
-                                degree -= 2;
-                            } else {
-                                degree += 2;
-                            }
-                            //Util.Logd(TAG, "Rotate Degree:" + degree*or);
-                            if (Math.abs(degree) > 5.0f) {
-                                neckRotate((int) degree, or);
-                            } else {
-                                if (bneckTilt) {
-                                    try {
-                                        Thread.sleep(200);
-                                    } catch (InterruptedException e) {
-                                        // ignore
-                                    }
-                                }
-
-                                mIsIdle = true;
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        private void saveBitmap(Bitmap bitmap) {
-            File file = new File("/sdcard/DCIM/Camera/" + "1.png");
-            if (file.exists()) {
-                file.delete();
-            }
-            FileOutputStream out;
-            try {
-                out = new FileOutputStream(file);
-                if (bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)) {
-                    out.flush();
-                    out.close();
-                } else {
-                    Util.Logd(TAG, "Bitmap compress fail");
-                }
-
-            } catch (Exception e) {
-                Util.Logd(TAG, e.getMessage());
-            }
-        }
-
-        private Bitmap decodeYUV420SP(byte[] yuv420sp, int width, int height) {
-            final int frameSize = width * height;
-            if (yuv420sp == null) {
-                throw new NullPointerException("buffer yuv420sp is null");
-            }
-
-            if (yuv420sp.length < frameSize) {
-                throw new IllegalArgumentException("buffer yuv420sp is illegal");
-            }
-
-            int[] rgb = new int[frameSize];
-            for (int j = 0, yp = 0; j < height; j++) {
-                int uvp = frameSize + (j >> 1) * width, u = 0, v = 0;
-                for (int i = 0; i < width; i++, yp++) {
-                    int y = (0xff & (yuv420sp[yp])) - 16;
-                    if (y < 0)
-                        y = 0;
-                    if ((i & 1) == 0) {
-                        v = (0xff & yuv420sp[uvp++]) - 128;
-                        u = (0xff & yuv420sp[uvp++]) - 128;
-                    }
-                    int y1192 = 1192 * y;
-                    int r = (y1192 + 1634 * v);
-                    int g = (y1192 - 833 * v - 400 * u);
-                    int b = (y1192 + 2066 * u);
-                    if (r < 0)
-                        r = 0;
-                    else if (r > 262143)
-                        r = 262143;
-                    if (g < 0)
-                        g = 0;
-                    else if (g > 262143)
-                        g = 262143;
-                    if (b < 0)
-                        b = 0;
-                    else if (b > 262143)
-                        b = 262143;
-                    rgb[yp] = 0xff000000 | ((r << 6) & 0xff0000)
-                            | ((g >> 2) & 0xff00) | ((b >> 10) & 0xff);
-                }
-            }
-
-            Bitmap bmp = Bitmap.createBitmap(rgb, width, height, Bitmap.Config.RGB_565);
-            return bmp;
-        }
-    }
 }

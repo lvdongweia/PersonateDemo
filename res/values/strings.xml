@@ -37,4 +37,9 @@
 
     <string name="hello">Hello</string>
     <string name="bye">Bye</string>
+
+    <string name="cover_eye">Oh,you\'re blocking my eyes</string>
+    <string name="noknow">I don\'t seem to know you</string>
+    <string name="hi">Hi,</string>
+
 </resources>

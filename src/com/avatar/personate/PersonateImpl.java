@@ -20,16 +20,11 @@ public class PersonateImpl {
 
     private Context mContext;
     private Handler mMainHandler;
-    private MyHandler mEventHandler;
     private PersonateScene mScene;
 
     public PersonateImpl(Context context, Handler handler) {
         mContext = context;
         mMainHandler = handler;
-
-        HandlerThread handlerThread = new HandlerThread("Personate Handler");
-        handlerThread.start();
-        mEventHandler = new MyHandler(handlerThread.getLooper());
     }
 
     private PersonateScene createScene(int scene) {
@@ -46,20 +41,22 @@ public class PersonateImpl {
     public void startScene(int scene) {
         if (mScene == null) {
             mScene = createScene(scene);
+            mScene.setMainHandler(mMainHandler);
         } else if (mScene.getType() != scene) {
-            mScene.stop();
+            mScene.stopScene();
             mScene = createScene(scene);
+            mScene.setMainHandler(mMainHandler);
         }
 
         if (mScene == null)
             throw new IllegalArgumentException("Inavlid scene.");
 
-        mScene.start();
+        mScene.startScene();
     }
 
     public void stopScene() {
         if (mScene != null) {
-            mScene.stop();
+            mScene.stopScene();
         }
     }
 
@@ -99,18 +96,5 @@ public class PersonateImpl {
             mScene.addMessage(msg);
         }
     }
-
-    private class MyHandler extends Handler {
-        public MyHandler(Looper looper) {
-            super(looper);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-            }
-        }
-    }
-
 
 }

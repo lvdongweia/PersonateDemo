@@ -14,14 +14,19 @@ LOCAL_CERTIFICATE := platform
 LOCAL_DEX_EXPORT := false
 
 LOCAL_REQUIRED_MODULES := \
+	libhandcover \
+	libhandwave \
 
-
+LOCAL_JAVA_LIBRARIES := \
+	com.avatarmind.camera.extensions
 
 include $(BUILD_PACKAGE)
 
 ####################################################
 
 include $(CLEAR_VARS)
-LOCAL_PREBUILT_LIBS := lib/libhandcover.so
+LOCAL_PREBUILT_LIBS := \
+	lib/libhandcover.so \
+	lib/libhandwave.so
 LOCAL_MODULE_TAGS := optional
 include $(BULID_MULTI_PREBUILT)

@@ -497,6 +497,8 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                 break;
 
             case R.id.btn_mic:
+                mSpeechManager.setAsrEnable(true);
+                mSpeechManager.startListening();
                 break;
 
             case R.id.btn_question_1:
@@ -538,6 +540,8 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     private static final int MSG_STOP_THINKING = 6;
     private static final int MSG_START_SPEAKING = 7;
     private static final int MSG_STOP_SPEAKING = 8;
+    public static final int MSG_ADD_SPEAKING = 9;
+    public static final int MSG_ADD_UNDERTAND = 10;
 
     private class MyHandler extends Handler {
         @Override
@@ -601,6 +605,17 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                     //Animation animation = (Animation) msg.obj;
                     //animation.play();
                     //sendMessageDelayed(Message.obtain(mHandler, msg.what, animation), animation.getFrequency());
+                    break;
+
+                case MSG_ADD_SPEAKING:
+                    String strTxt = (String)msg.obj;
+                    mSpeechManager.startSpeaking(strTxt, true);
+                    mDialogAdapter.addAnswer(strTxt);
+                    break;
+
+                case MSG_ADD_UNDERTAND:
+                    String strUnder = (String)msg.obj;
+                    mSpeechManager.startUnderstanding(strUnder);
                     break;
 
                 default:
