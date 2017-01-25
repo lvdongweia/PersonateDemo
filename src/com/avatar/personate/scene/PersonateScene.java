@@ -20,6 +20,8 @@ public abstract class PersonateScene {
     protected boolean mIsWorking;
 
     public static final int SCENE_DEFAULT = 0;
+
+    public static final int MSG_ASR_BEGIN   = 12;
     public static final int MSG_NLU_EVENT   = 0;
     public static final int MSG_SPEAK_BEGIN = 1;
     public static final int MSG_SPEAK_END   = 2;
@@ -31,6 +33,7 @@ public abstract class PersonateScene {
     public final int MSG_HAND_WAVE_DETECT = 8;
     public final int MSG_FACE_RECONGIZE = 9;
     public final int MSG_SAY_HELLO = 10;
+    public final int MSG_SET_EXPRESSION = 11;
 
     public PersonateScene(Context context, int scene) {
         mContext = context;

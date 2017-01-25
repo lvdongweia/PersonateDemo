@@ -55,6 +55,7 @@ public class DefaultScene extends PersonateScene {
     private String mPeopleName;
     private int mTurnSession;
     private boolean mIsTurning;
+    private int mExpression_id = -1;
 
 
     public DefaultScene(Context context) {
@@ -146,20 +147,15 @@ public class DefaultScene extends PersonateScene {
 
         long time;
         switch (msg.what) {
-            case MSG_NLU_EVENT:
-                mLastActiveTime = System.currentTimeMillis();
-                if (mState == STATE_IDLE) {
-                    mState = STATE_ACTIVE;
-                    Util.Logd(TAG, "#######Exit idle state");
-                    if (mIdleMotionThread != null) {
-                        mIdleMotionThread.interrupt();
-                    }
-
-                    // 重启事件检测
-                    mCameraEvent.setFaceDetect(true);
-                    mCameraEvent.setHandCover(true);
+            case MSG_ASR_BEGIN:
+                if (mExpression_id != -1) {
+                    mHandler.sendMessageDelayed(
+                            mHandler.obtainMessage(MSG_SET_EXPRESSION, mExpression_id, -1), 100);
                 }
 
+                break;
+
+            case MSG_NLU_EVENT:
                 doNluResponse(msg.arg1, (String) msg.obj);
                 break;
 
@@ -181,17 +177,16 @@ public class DefaultScene extends PersonateScene {
 
             case MSG_IDLE_CHECK:
                 long diff = System.currentTimeMillis() - mLastActiveTime;
-                if (diff >= IDLE_TIME) {
+                if (diff >= IDLE_TIME && mState != STATE_IDLE) {
                     Util.Logd(TAG, "#######Enter idle state");
                     mState = STATE_IDLE;
                     //暂停事件检测
                     mCameraEvent.setFaceDetect(false);
                     mCameraEvent.setHandCover(false);
                     mHandler.sendEmptyMessage(MSG_IDLE_ACTION);
-                } else {
-                    // 延后检查是否为idle状态
-                    mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME - diff);
                 }
+                // 延后检查是否为idle状态
+                mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
                 break;
 
             case MSG_IDLE_ACTION:
@@ -219,12 +214,12 @@ public class DefaultScene extends PersonateScene {
                 time = System.currentTimeMillis();
                 String dontKnow = mContext.getString(R.string.noknow);
                 if ((time - mLastHandEventTime) > COVER_FREQ) {
+                    mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
                     if (mPeopleName == null || (time - mLastPeopleTime) > 2 * COVER_FREQ) {
                         startSpeaking(dontKnow);
                         mPeopleName = null;
                     } else {
                         String know = mContext.getString(R.string.hi) + mPeopleName;
-                        mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
                         startSpeaking(know);
                     }
                     mLastHandEventTime = time;
@@ -239,6 +234,10 @@ public class DefaultScene extends PersonateScene {
                 String strCover = mContext.getString(R.string.hello);
                 mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
                 startSpeaking(strCover);
+                break;
+
+            case MSG_SET_EXPRESSION:
+                doExpression(msg.arg1);
                 break;
 
             default:
@@ -383,7 +382,7 @@ public class DefaultScene extends PersonateScene {
 
 
     private void doNluResponse(int requestId, String text) {
-        int expression_id = -1;
+        mExpression_id = -1;
 
         Iterator iter = mMoodMap.entrySet().iterator();
         while (iter.hasNext()) {
@@ -391,23 +390,18 @@ public class DefaultScene extends PersonateScene {
             String[] strMood = (String[]) entry.getValue();
             for (String mood : strMood) {
                 if (text.contains(mood)) {
-                    expression_id = (Integer) entry.getKey();
+                    mExpression_id = (Integer) entry.getKey();
                     break;
                 }
             }
 
-            if (expression_id != -1)
+            if (mExpression_id != -1)
                 break;
         }
-
-        if (expression_id == -1)
-            expression_id = RobotMotion.Emoji.TALK;
-
-        Util.Logd(TAG, "Text:" + text + " exp:" + expression_id);
-        doExpression(expression_id);
     }
 
     private void doExpression(int requestId) {
+        Util.Logd(TAG, "Set expression:" + requestId);
         mRobotCtl.emoji(requestId);
     }
 
@@ -421,7 +415,7 @@ public class DefaultScene extends PersonateScene {
             if (mIsTurning) return;
 
             int headPos = mCameraEvent.getNeckRotateAngle();
-            Util.Logd(TAG, "##Mic ORI:" + angle + "  Head:" + headPos + "##");
+            Util.Logd(TAG, "##Mic Ori:" + angle + "  Head:" + headPos + "##");
 
             int turnAngle = 0;
             if (angle <= 180) {
@@ -449,6 +443,19 @@ public class DefaultScene extends PersonateScene {
             boolean isSuc = mAudioManager.setMicArrayOrientation(AudioManager.MIC_ARRAY_ORI_0_360);
             if (!isSuc) {
                 Util.Logd(TAG, "setMicArrayOrientation 0 fail");
+            }
+
+            mLastActiveTime = System.currentTimeMillis();
+            if (mState == STATE_IDLE) {
+                mState = STATE_ACTIVE;
+                Util.Logd(TAG, "#######Exit idle state");
+                if (mIdleMotionThread != null) {
+                    mIdleMotionThread.interrupt();
+                }
+
+                // 重启事件检测
+                mCameraEvent.setFaceDetect(true);
+                mCameraEvent.setHandCover(true);
             }
         }
     };

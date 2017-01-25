@@ -60,6 +60,14 @@ public class PersonateImpl {
         }
     }
 
+    public void onAsrBegin() {
+        if (mScene != null) {
+            Message msg = new Message();
+            msg.what = PersonateScene.MSG_ASR_BEGIN;
+            mScene.addMessage(msg);
+        }
+    }
+
     public void onNluResult(int requestId, String text) {
         if (mScene != null) {
             Message msg = new Message();

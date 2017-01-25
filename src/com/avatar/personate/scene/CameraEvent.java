@@ -291,9 +291,12 @@ public class CameraEvent implements Camera.PreviewCallback{
                 case MSG_EVENT_REPORT:
                     if (mCallback != null) {
                         int event = msg.arg1;
-                        if (event == EVENT_HAND_WAVE) mCallback.onHandWave();
-                        else if (event == EVENT_HAND_COVER) mCallback.onHandCover();
-                        else if (event == EVENT_FACE_RECOGNIZE) mCallback.onFaceRecognize((String)msg.obj);
+                        if (event == EVENT_HAND_WAVE)
+                            mCallback.onHandWave();
+                        else if (event == EVENT_HAND_COVER)
+                            mCallback.onHandCover();
+                        else if (event == EVENT_FACE_RECOGNIZE)
+                            mCallback.onFaceRecognize((String)msg.obj);
                     }
                     break;
 
@@ -354,9 +357,9 @@ public class CameraEvent implements Camera.PreviewCallback{
                 }
 
                 if (mCoverCount >= 13) {
-                    //TODO report cover event
+                    //report cover event
                     Util.Logd(TAG, "######Hand Cover######");
-                    mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_COVER, -1).sendToTarget();
+                    //mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_COVER, -1).sendToTarget();
                     // reset count
                     mCoverCount = 0;
                 }
@@ -447,8 +450,23 @@ public class CameraEvent implements Camera.PreviewCallback{
 
     private void neckRotate(int angle, int orientation) {
         angle *= orientation;
-        mNowRotateAngle += angle;
 
+        /*int tmpAngle = mNowRotateAngle + angle;
+
+        if (tmpAngle > HEAD_RIGHT_MAX)
+            tmpAngle = HEAD_RIGHT_MAX;
+        else if (tmpAngle < HEAD_LEFT_MAX)
+            tmpAngle = HEAD_LEFT_MAX;
+
+        if (mNowRotateAngle == tmpAngle)
+            return;
+
+        mNowRotateAngle = tmpAngle;
+        mNeckSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 300, 0);
+        mNeckRunning = true;
+        */
+
+        mNowRotateAngle += angle;
         if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
             mRobotCtrl.turn(-10*orientation, 1);
             mNowRotateAngle -= angle;

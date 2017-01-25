@@ -196,6 +196,9 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         @Override
         public void onBegin() {
             //Util.Loge(TAG, "ASR: Begin");
+            if (mPersonate != null) {
+                mPersonate.onAsrBegin();
+            }
             Message.obtain(mHandler, MSG_START_LISTENING).sendToTarget();
         }
 
@@ -550,6 +553,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                 case MSG_START_LISTENING:
                     //Util.Logd(TAG, "MSG_START_LISTENING");
                     startListenAnimation();
+
                     /*if (mHelpListView.getVisibility() == View.VISIBLE) {
                         mHelpListView.setVisibility(View.GONE);
                     }*/
