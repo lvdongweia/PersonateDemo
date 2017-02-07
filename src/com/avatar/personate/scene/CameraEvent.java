@@ -321,7 +321,7 @@ public class CameraEvent implements Camera.PreviewCallback{
                 findface(data);
 
             try {
-                Thread.sleep(80);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 // ignore
             }
@@ -359,7 +359,7 @@ public class CameraEvent implements Camera.PreviewCallback{
                 if (mCoverCount >= 10) {
                     //report cover event
                     Util.Logd(TAG, "######Hand Cover######");
-                    mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_COVER, -1).sendToTarget();
+                    //mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_COVER, -1).sendToTarget();
                     // reset count
                     mCoverCount = 0;
                 }
@@ -426,7 +426,7 @@ public class CameraEvent implements Camera.PreviewCallback{
         } else {
             if (isNeckMove) {
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(300);
                 } catch (InterruptedException e) {
                     //ignore
                 }

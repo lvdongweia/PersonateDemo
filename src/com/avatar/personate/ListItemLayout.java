@@ -53,18 +53,18 @@ public class ListItemLayout extends RelativeLayout implements
             int lines = layout.getLineCount();
             if (lines > 0) {
                 if (layout.getEllipsisCount(lines - 1) > 0) {
-                    Util.Logd(TAG,
+                    /*Util.Logd(TAG,
                             "Text is ellipsized" + lines
                                     + " l.getEllipsisCount(lines - 1): "
-                                    + layout.getEllipsisCount(lines - 1));
+                                    + layout.getEllipsisCount(lines - 1));*/
                     mImageView.setVisibility(VISIBLE);
                 } else {
-                    Util.Logd(TAG, "Text is not ellipsized" + lines);
+                    //Util.Logd(TAG, "Text is not ellipsized" + lines);
                     mImageView.setVisibility(GONE);
                 }
             }
         } else {
-            Util.Logd(TAG, "layout is null");
+            //Util.Logd(TAG, "layout is null");
         }
     }
 

@@ -436,6 +436,10 @@ public class DefaultScene extends PersonateScene {
             if (turnAngle != 0) {
                 mIsTurning = true;
                 mTurnSession = mRobotCtl.turn(turnAngle, 2);
+                // after turn over (mTurnSession is false), send MSG_SAY_HELLO;
+            } else {
+                // if not need turn, send MSG_SAY_HELLO directelly
+                mHandler.sendEmptyMessage(MSG_SAY_HELLO);
             }
             mCameraEvent.setNeckRotateAngle(headPos);
             Util.Logd(TAG, "##HeadPos:" + headPos + "  WheelPos:" + turnAngle + "##");
