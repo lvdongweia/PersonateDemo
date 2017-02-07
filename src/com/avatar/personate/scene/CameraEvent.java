@@ -119,7 +119,7 @@ public class CameraEvent implements Camera.PreviewCallback{
             param.setPreviewSize(WIDTH, HEIGHT);
 
             //set avatarmind extensions parameters
-            AvatarCameraParameters customParams = new AvatarCameraParameters();
+            /*AvatarCameraParameters customParams = new AvatarCameraParameters();
             //set AE Mode
             List<String> aeModeList = customParams.getSupportedAEModes(param);
             if (aeModeList != null && aeModeList.contains(AvatarCameraParameters.AE_MODE_MANUAL)) {
@@ -129,7 +129,7 @@ public class CameraEvent implements Camera.PreviewCallback{
             List<String> shutterList = customParams.getSupportedShutter(param);
             if (shutterList != null) {
                 customParams.setShutter(shutterList.get(2), param);
-            }
+            }*/
 
             mCamera.setParameters(param);
             getFocusDistance();
@@ -349,17 +349,17 @@ public class CameraEvent implements Camera.PreviewCallback{
                 }
 
                 // 指定时间内检测到覆盖事件
-                if ((time - mLastCoverTime) <= 800) {
+                if ((time - mLastCoverTime) <= 950) {
                     mCoverCount++;
                 } else {
                     mCoverCount = 1;
                     mLastCoverTime = time;
                 }
 
-                if (mCoverCount >= 13) {
+                if (mCoverCount >= 10) {
                     //report cover event
                     Util.Logd(TAG, "######Hand Cover######");
-                    //mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_COVER, -1).sendToTarget();
+                    mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_COVER, -1).sendToTarget();
                     // reset count
                     mCoverCount = 0;
                 }

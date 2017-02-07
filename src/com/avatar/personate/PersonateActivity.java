@@ -6,22 +6,16 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.robot.scheduler.SchedulerManager;
 import android.robot.speech.SpeechManager;
 import android.robot.speech.SpeechService;
-import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,10 +35,11 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     private ThinkView mThinkView;
     private ListeningView mListenView;
     private SpeakView mSpeakView;
-    private DialogAdapter mDialogAdapter;
+    private ImageView mMoreItem;
 
     private List<Drawable> mSpeakImageList;
 
+    private DialogAdapter mDialogAdapter;
     private final MyHandler mHandler = new MyHandler();
 
     @Override
@@ -52,34 +47,28 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.ai_dialog);
 
-        // TODO use mic-2
-        //SchedulerManager scm = (SchedulerManager) getSystemService(Context.SCHEDULER_SERVICE);
-        //scm.setMicroPhoneType(SchedulerManager.MICROPHONE_ARRAY);
-
         mStateView = (FrameLayout) findViewById(R.id.state_view);
         mListenView = (ListeningView) getLayoutInflater().inflate(R.layout.listening_view, null);
         mThinkView = (ThinkView) getLayoutInflater().inflate(R.layout.think_view, null);
         mSpeakView = (SpeakView) getLayoutInflater().inflate(R.layout.speak_view, null);
 
-        Button home_1 = (Button) mThinkView.findViewById(R.id.btn_home_1);
-        home_1.setOnClickListener(this);
-        Button mic = (Button) mThinkView.findViewById(R.id.btn_mic);
-        mic.setOnClickListener(this);
-        Button question_1 = (Button) mThinkView.findViewById(R.id.btn_question_1);
-        question_1.setOnClickListener(this);
+        mListenView.findViewById(R.id.btn_home).setOnClickListener(this);
+        mThinkView.findViewById(R.id.btn_home).setOnClickListener(this);
+        mThinkView.findViewById(R.id.btn_mic).setOnClickListener(this);
+        mThinkView.findViewById(R.id.btn_question).setOnClickListener(this);
 
-        Button home_2 = (Button) mSpeakView.findViewById(R.id.btn_home_2);
-        home_2.setOnClickListener(this);
-        Button question_2 = (Button) mSpeakView.findViewById(R.id.btn_question_2);
-        question_2.setOnClickListener(this);
+        mSpeakView.findViewById(R.id.btn_home).setOnClickListener(this);
+        mSpeakView.findViewById(R.id.btn_question).setOnClickListener(this);
 
+        mMoreItem = (ImageView) findViewById(R.id.btn_more);
+        mMoreItem.setVisibility(View.GONE);
+        mMoreItem.setOnClickListener(this);
 
         mStateView.addView(mThinkView);
 
         mDialogListView = (ListView) findViewById(R.id.list_dialog);
         mDialogAdapter = new DialogAdapter(this);
         mDialogListView.setAdapter(mDialogAdapter);
-        mDialogListView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         mSpeechManager = (SpeechManager) getSystemService(SpeechService.SERVICE_NAME);
         if (mSpeechManager == null) {
@@ -369,8 +358,6 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
         private final int VIEW_TYPE_QUESTION = 0;
         private final int VIEW_TYPE_ANSWER = 1;
 
-        private final float MAX_TEXT_SIZE = 13 * 2 * 90; // 13 characters per line, 2 line, textsize is 90px
-
         private final LayoutInflater mInflater;
         private final List<DialogAdapter.Dialog> mDialogList;
 
@@ -389,7 +376,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                     holder = new DialogAdapter.ViewHolder();
                     // Util.Loge(TAG, "enter");
                     convertView = mInflater.inflate(R.layout.list_question_item, null);
-                    holder.mTextView = (TextView) convertView.findViewById(R.id.question);
+                    holder.mLayout = (ListItemLayout) convertView.findViewById(R.id.question_layout);
                     convertView.setTag("question".hashCode(), holder);
                 } else {
                     holder = (DialogAdapter.ViewHolder) convertView.getTag("question".hashCode());
@@ -400,7 +387,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                     holder = new DialogAdapter.ViewHolder();
                     // Util.Loge(TAG, "enter");
                     convertView = mInflater.inflate(R.layout.list_answer_item, null);
-                    holder.mTextView = (TextView) convertView.findViewById(R.id.answer);
+                    holder.mLayout = (ListItemLayout) convertView.findViewById(R.id.answer_layout);
                     convertView.setTag("answer".hashCode(), holder);
                 } else {
                     holder = (DialogAdapter.ViewHolder) convertView.getTag("answer".hashCode());
@@ -408,16 +395,12 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                 }
             }
 
-            TextView textView = holder.mTextView;
-            TextPaint paint = textView.getPaint();
-
-            CharSequence str = TextUtils.ellipsize(mDialogList.get(position).mItem, textView.getPaint(), MAX_TEXT_SIZE, TextUtils.TruncateAt.END);
-            holder.mTextView.setText(str);
+            holder.mLayout.setText(mDialogList.get(position).mItem);
             return convertView;
         }
 
         public final class ViewHolder {
-            TextView mTextView;
+            ListItemLayout mLayout;
         }
 
         @Override
@@ -458,6 +441,9 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             }
             super.notifyDataSetChanged();
             mDialogListView.setSelection(mDialogAdapter.getCount() - 1);
+            if (getCount() > 2) {
+                mMoreItem.setVisibility(View.VISIBLE);
+            }
         }
 
         public void addQuestion(String question) {
@@ -494,8 +480,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
-            case R.id.btn_home_1:
-            case R.id.btn_home_2:
+            case R.id.btn_home:
                 finish();
                 break;
 
@@ -504,8 +489,18 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                 mSpeechManager.startListening();
                 break;
 
-            case R.id.btn_question_1:
-            case R.id.btn_question_2:
+            case R.id.btn_question:
+                break;
+
+            case R.id.btn_more:
+                int position = mDialogListView.getFirstVisiblePosition();
+                if (mDialogAdapter.getItemViewType(position) == mDialogAdapter.VIEW_TYPE_ANSWER
+                        && mDialogAdapter.getCount() > 2) {
+                    mDialogListView.smoothScrollToPosition(position - 1);
+                } else if (mDialogAdapter.getItemViewType(position) == mDialogAdapter.VIEW_TYPE_QUESTION
+                        && mDialogAdapter.getCount() > 2) {
+                    mDialogListView.smoothScrollToPosition(position - 2);
+                }
                 break;
 
             default:

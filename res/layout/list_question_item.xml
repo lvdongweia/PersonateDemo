@@ -1,11 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><!-- Copyright (C) 2006 The Android Open Source Project
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ Copyright (C) 2006 The Android Open Source Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
      You may obtain a copy of the License at
-  
+
           http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the License is distributed on an "AS IS" BASIS,
      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,34 +16,41 @@
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal">
+    android:layout_height="340px"
+    android:orientation="horizontal" >
 
-    <LinearLayout
+    <com.avatar.personate.ListItemLayout
+        android:id="@+id/question_layout"
         android:layout_width="match_parent"
-        android:layout_height="340px"
-        android:layout_marginRight="180px"
-        android:gravity="bottom"
-        android:orientation="horizontal">
+        android:layout_height="340px" >
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/tv_content"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="30px"
+            android:layout_marginRight="300px"
             android:background="@drawable/dialog_box_question"
-            android:orientation="horizontal">
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:paddingBottom="40px"
+            android:paddingLeft="100px"
+            android:paddingRight="100px"
+            android:paddingTop="40px"
+            android:textColor="#ffffff"
+            android:textSize="90px" />
 
-            <TextView
-                android:id="@+id/question"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="40px"
-                android:layout_marginBottom="40px"
-                android:layout_marginLeft="100px"
-                android:layout_marginRight="100px"
-                android:maxLines="2"
-                android:ellipsize="end"
-                android:textColor="#ffffff"
-                android:textSize="90px" />
-        </LinearLayout>
-    </LinearLayout>
+        <ImageView
+            android:id="@+id/im_hint"
+            android:layout_width="90px"
+            android:layout_height="90px"
+            android:layout_alignBottom="@id/tv_content"
+            android:layout_alignRight="@id/tv_content"
+            android:layout_marginBottom="40px"
+            android:layout_marginRight="100px"
+            android:src="@drawable/btn_open_up" />
+    </com.avatar.personate.ListItemLayout>
+
 </LinearLayout>
