@@ -4,34 +4,21 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Bitmap;
-import android.graphics.PointF;
-import android.graphics.SurfaceTexture;
-import android.hardware.Camera;
 import android.media.AudioManager;
-import android.media.FaceDetector;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
 import android.os.Message;
 import android.robot.motion.RobotMotion;
 import android.robot.scheduler.RobotConstants;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.avatar.personate.ThinkView;
 import com.avatar.personate.Util;
 import com.avatar.robot.Robot;
 
 import com.avatar.personate.R;
 import com.avatar.robot.util.SystemMotion;
-import com.avatarmind.vision.cover.handcover;
-import com.avatarmind.vision.wave.handwave;
-
 
 public class DefaultScene extends PersonateScene {
     private final String TAG = "DefaultScene";
@@ -92,10 +79,6 @@ public class DefaultScene extends PersonateScene {
 
         // 延后检查是否为idle状态
         mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
-
-        File AppDir = context.getDir("cascade", Context.MODE_PRIVATE);
-        String strAppPath = AppDir.getAbsolutePath();
-        handwave.nativeInitial(strAppPath);
     }
 
     @Override
@@ -266,20 +249,8 @@ public class DefaultScene extends PersonateScene {
 
         mContext.registerReceiver(mEventReceiver, intent);
 
-        // start detect camera event
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (mCameraEvent.init()) {
-                    try {
-                        Thread.sleep(1000);
-                        mCameraEvent.start();
-                    } catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
-            }
-        }).start();
+        mCameraEvent.init();
+        mCameraEvent.start();
     }
 
     private void unregisterEvent() {

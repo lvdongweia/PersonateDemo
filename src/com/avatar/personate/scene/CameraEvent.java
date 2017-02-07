@@ -3,28 +3,23 @@ package com.avatar.personate.scene;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.PointF;
-import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.media.FaceDetector;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.robot.motion.RobotMotion;
 
-import com.avatar.personate.FaceRecgUtil;
 import com.avatarmind.camera.extensions.AvatarCameraParameters;
 import com.avatar.personate.Util;
-import com.avatarmind.vision.cover.handcover;
-import com.avatarmind.vision.wave.handwave;
+
+import com.avatarmind.visionservice.Native;
+import com.avatarmind.visionservice.OnDetectorListening;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InterruptedIOException;
-import java.util.List;
 
-public class CameraEvent implements Camera.PreviewCallback{
+public class CameraEvent {
     private final String TAG = "CameraEvent";
 
     private static CameraEvent mInstance;
@@ -41,27 +36,22 @@ public class CameraEvent implements Camera.PreviewCallback{
     public static final int HEAD_RIGHT_MAX = 30;
 
     private RobotMotion mRobotCtrl;
-    private FaceDetector mFaceDetector;
     private FrameDecode mFaceDecode;
-    private FrameDecode mHandDecode;
-    private FaceRecgUtil mFaceRecg;
+    private Native mVisionService;
+
     private CameraEventListener mCallback;
 
     private Context mContext;
-    private Camera mCamera;
-    private SurfaceTexture mSurfaceTexture;
+
     private Handler mEventHandler;
-    private Handler mFaceHandler;
 
     private int mNowRotateAngle = 0;
     private int mNowTiltAngle = 0;
     private double mRotateParam;
     private double mTiltParam;
     private boolean mIsFaceDetect;
-    private boolean mIsFaceRecg;
     private boolean mIsHandCover;
     private boolean mNeckRunning;
-    private boolean mIsFaceRecognizing;
 
     private int mNeckSession;
 
@@ -91,60 +81,15 @@ public class CameraEvent implements Camera.PreviewCallback{
     private CameraEvent(Context context) {
         mContext = context;
 
-        mFaceRecg = new FaceRecgUtil(context);
         mRobotCtrl = new RobotMotion();
         mRobotCtrl.setListener(mMotionListener);
-
-        mFaceDetector = new FaceDetector(WIDTH, HEIGHT, MAX_FACES);
         mFaceDecode = new FrameDecode(MAX_PREVIEW_BUFFERS);
-        mHandDecode = new FrameDecode(MAX_PREVIEW_BUFFERS);
 
-        File AppDir = mContext.getDir("cascade", Context.MODE_PRIVATE);
-        String strAppPath = AppDir.getAbsolutePath();
-        handwave.nativeInitial(strAppPath);
+        mVisionService = new Native();
+        mVisionService.setOnDetectorListening(mDetectorListener);
     }
 
-    public boolean init() {
-        try {
-            mCamera = Camera.open(0);
-            if (mCamera == null) {
-                Util.Logd(TAG, "Open camera(0) fail.");
-                return false;
-            }
-
-            mSurfaceTexture = new SurfaceTexture(10);
-            mCamera.setPreviewTexture(mSurfaceTexture);
-
-            Camera.Parameters param = mCamera.getParameters();
-            param.setPreviewSize(WIDTH, HEIGHT);
-
-            //set avatarmind extensions parameters
-            AvatarCameraParameters customParams = new AvatarCameraParameters();
-            //set AE Mode
-            List<String> aeModeList = customParams.getSupportedAEModes(param);
-            if (aeModeList != null && aeModeList.contains(AvatarCameraParameters.AE_MODE_MANUAL)) {
-                customParams.setAEMode(AvatarCameraParameters.AE_MODE_MANUAL, param);
-            }
-            //set shutter time
-            List<String> shutterList = customParams.getSupportedShutter(param);
-            if (shutterList != null) {
-                customParams.setShutter(shutterList.get(2), param);
-            }
-
-            mCamera.setParameters(param);
-            getFocusDistance();
-
-            // malloc bufer
-            //int bufSize = (WIDTH * HEIGHT) * ImageFormat.getBitsPerPixel(param.getPreviewFormat()) / 8;
-
-        } catch (Exception e) {
-            Util.Logd(TAG ,"Exception:" + e.getMessage());
-            if (mCamera != null) {
-                mCamera.release();
-                mCamera = null;
-                return false;
-            }
-        }
+    public void init() {
         // reset angle
         mNowRotateAngle = 0;
         mNowTiltAngle = 0;
@@ -153,75 +98,31 @@ public class CameraEvent implements Camera.PreviewCallback{
         eventThread.start();
         mEventHandler = new EventHandler(eventThread.getLooper());
 
-        HandlerThread faceThread = new HandlerThread("Face Recognize");
-        faceThread.start();
-        mFaceHandler = new Handler(faceThread.getLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                if (msg.what != MSG_FACE_RECOGIZE) return;
-
-                mIsFaceRecognizing = true;
-                long t1 = System.currentTimeMillis();
-                String name = null;
-                String faceID = mFaceRecg.decodeFaceID((byte[])msg.obj, WIDTH, HEIGHT);
-                if (faceID != null) {
-                    name = mFaceRecg.recognize(faceID);
-                }
-                long t2 = System.currentTimeMillis();
-                Util.Logd(TAG, "FaceID:" + faceID + "  Name:" + name +  "  Use:" + (t2-t1) + "ms");
-                if (name != null && mEventHandler != null) {
-                    mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_FACE_RECOGNIZE, -1, name).sendToTarget();
-                }
-                mIsFaceRecognizing = false;
-            }
-        };
-
-        return true;
+        registerVisionEvent();
     }
 
     public void uninit() {
-        if (mCamera != null) {
-            //stop();
-            mCamera.release();
-            mCamera = null;
-
-            mFaceHandler.removeMessages(MSG_FACE_RECOGIZE);
-            mFaceHandler.getLooper().quitSafely();
-            mFaceHandler = null;
-
-            mEventHandler.removeMessages(MSG_EVENT_REPORT);
-            mEventHandler.removeMessages(MSG_PREVIEW_FRAME);
-            mEventHandler.getLooper().quitSafely();
-            mEventHandler = null;
-        }
+        mEventHandler.removeMessages(MSG_EVENT_REPORT);
+        mEventHandler.removeMessages(MSG_FACE_DETECT);
+        mEventHandler.getLooper().quitSafely();
+        mEventHandler = null;
     }
 
     public void start() {
-        if (mCamera != null) {
-            setFaceDetect(true);
-            setFaceRecg(true);
-            setHandCover(true);
+        setFaceDetect(true);
+        setHandCover(true);
 
-            mFaceDecode.start(mFaceFrame);
-            mHandDecode.start(mHandFrame);
-
-            mCamera.setPreviewCallback(this);
-            mCamera.startPreview();
-        }
+        mFaceDecode.start(mFaceFrame);
+        mVisionService.resume();
     }
 
     public void stop() {
-        if (mCamera != null) {
-            mCamera.setPreviewCallback(null);
-            mCamera.stopPreview();
+        mVisionService.suspend();
 
-            setFaceDetect(false);
-            setFaceRecg(false);
-            setHandCover(false);
+        setFaceDetect(false);
+        setHandCover(false);
 
-            mFaceDecode.stop();
-            mHandDecode.stop();
-        }
+        mFaceDecode.stop();
     }
 
     public void setListener(CameraEventListener callback) {
@@ -230,10 +131,6 @@ public class CameraEvent implements Camera.PreviewCallback{
 
     public void setFaceDetect(boolean enable) {
         mIsFaceDetect = enable;
-    }
-
-    public void setFaceRecg(boolean enable) {
-        mIsFaceRecg = enable;
     }
 
     public void setHandCover(boolean enable) {
@@ -252,28 +149,24 @@ public class CameraEvent implements Camera.PreviewCallback{
         }
     }
 
-    @Override
-    public void onPreviewFrame(byte[] data, Camera camera) {
-        //Util.Logd(TAG, "onPreviewFrame");
-        mEventHandler.obtainMessage(MSG_PREVIEW_FRAME, data).sendToTarget();
-    }
-
     private final int EVENT_HAND_COVER = 0;
-    private final int EVENT_HAND_WAVE  = 1;
+    private final int EVENT_HAND_WAVE = 1;
     private final int EVENT_FACE_RECOGNIZE = 2;
+
     /**
      * @interface
-     *
      */
-    public interface CameraEventListener{
+    public interface CameraEventListener {
         public void onHandWave();
+
         public void onHandCover();
+
         public void onFaceRecognize(String name);
     }
 
-    private final int MSG_PREVIEW_FRAME = 0;
-    private final int MSG_FACE_RECOGIZE = 1;
-    private final int MSG_EVENT_REPORT  = 2;
+    private final int MSG_FACE_DETECT = 0;
+    private final int MSG_EVENT_REPORT = 1;
+
     private class EventHandler extends Handler {
         public EventHandler(Looper looper) {
             super(looper);
@@ -282,10 +175,8 @@ public class CameraEvent implements Camera.PreviewCallback{
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case MSG_PREVIEW_FRAME:
-                    final byte[] yuvData = (byte[])msg.obj;
-                    if (mIsFaceDetect) mFaceDecode.addBuffer(yuvData);
-                    if (mIsHandCover) mHandDecode.addBuffer(yuvData);
+                case MSG_FACE_DETECT:
+                    if (mIsFaceDetect) mFaceDecode.addBuffer((LableInfo)msg.obj);
                     break;
 
                 case MSG_EVENT_REPORT:
@@ -296,7 +187,7 @@ public class CameraEvent implements Camera.PreviewCallback{
                         else if (event == EVENT_HAND_COVER)
                             mCallback.onHandCover();
                         else if (event == EVENT_FACE_RECOGNIZE)
-                            mCallback.onFaceRecognize((String)msg.obj);
+                            mCallback.onFaceRecognize((String) msg.obj);
                     }
                     break;
 
@@ -307,42 +198,87 @@ public class CameraEvent implements Camera.PreviewCallback{
     }
 
     /**
-     * @interface
+     * event:事件类型（""cover"",""handwave"",""face"",""faceinfo"",""paper"",""scissors"",""rock"",
+     *""human""""object"",""falldown"",""fire"",""movement""）
      */
-    private interface FrameAction {
-        void run(byte[] data);
+    private void registerVisionEvent() {
+        mVisionService.switchDetector("cover", true);
+        mVisionService.switchDetector("handwave", true);
+        mVisionService.switchDetector("face", true);
     }
 
-    private final FrameAction mFaceFrame = new FrameAction() {
+    private final OnDetectorListening mDetectorListener = new OnDetectorListening() {
         @Override
-        public void run(byte[] data) {
-            //Util.Logd(TAG, "Face Frame");
-            if (!mNeckRunning)
-                findface(data);
+        public void DetectorListening(String event, String lable, int PosX, int PoxY, int Width, int Height) {
+            Util.Logd(TAG, "####Event:" + event + "  lable:" + lable +
+                    "  (x,y,w,h)=(" + PosX + "," + PoxY + "," + Width + "," + Height + ")");
 
-            try {
-                Thread.sleep(80);
-            } catch (InterruptedException e) {
-                // ignore
+            if (event.equals("face")) {
+                LableInfo info = new LableInfo(event, lable, PosX, PoxY, Width, Height);
+                mEventHandler.obtainMessage(MSG_FACE_DETECT, info).sendToTarget();
+            } else if (event.equals("handwave")) {
+
+            } else if (event.equals("wave")) {
+
             }
         }
     };
 
-    private long mLastCoverTime;
+    /**
+     * @interface
+     */
+    private interface FrameAction {
+        void run(LableInfo data);
+    }
+
+    public class LableInfo {
+        public String mEvent;
+        public String mLable;
+        public int mPosX;
+        public int mPosY;
+        public int mWidth;
+        public int mHeight;
+
+        public LableInfo(String event, String lable) {
+            mEvent = event;
+            mLable = lable;
+        }
+
+        public LableInfo(String event, String lable, int posX, int posY, int width, int height) {
+            this(event, lable);
+
+            mPosX = posX;
+            mPosY = posY;
+            mWidth = width;
+            mHeight = height;
+        }
+    }
+
+    private final FrameAction mFaceFrame = new FrameAction() {
+        @Override
+        public void run(LableInfo data) {
+            //Util.Logd(TAG, "Face Frame");
+            if (!mNeckRunning) {
+                //findface(data);
+            }
+        }
+    };
+
+    /*private long mLastCoverTime;
     private int mCoverCount;
     private final FrameAction mHandFrame = new FrameAction() {
         @Override
         public void run(byte[] data) {
-            String wave = handwave.detectwave(data, WIDTH, HEIGHT);
+            //String wave = handwave.detectwave(data, WIDTH, HEIGHT);
             //Util.Logd(TAG, "Hand wave:" + wave);
-            if (wave.equals("WAVE")) {
+            if (true) {
                 Util.Logd(TAG, "@@@@@@Hand Wave@@@@@@");
                 mEventHandler.obtainMessage(MSG_EVENT_REPORT, EVENT_HAND_WAVE, -1).sendToTarget();
             }
 
-            String cover = handcover.detectcover(data, WIDTH, HEIGHT);
+            //String cover = handcover.detectcover(data, WIDTH, HEIGHT);
             //Util.Logd(TAG, "Hand cover:" + cover);
-            if (cover.equals("COVER")) {
+            if (true) {
                 long time = System.currentTimeMillis();
                 if (mCoverCount == 0) {
                     mLastCoverTime = time;
@@ -365,7 +301,7 @@ public class CameraEvent implements Camera.PreviewCallback{
                 }
             }
         }
-    };
+    };*/
 
     private void getFocusDistance() {
         double angle = 30.0;
@@ -378,6 +314,7 @@ public class CameraEvent implements Camera.PreviewCallback{
         mTiltParam = focusDistance / HEIGHT;
     }
 
+    /*
     private void findface(final byte[] data) {
         long start = System.currentTimeMillis();
         Bitmap bmp = decodeYUV420SP(data, WIDTH, HEIGHT);
@@ -388,12 +325,6 @@ public class CameraEvent implements Camera.PreviewCallback{
         //Util.Logd(TAG, "Conver:" + (time1 - start) + "ms  Find:" + (time2 - time1) + "ms");
         if (count < 1 || faces[0].confidence() < FaceDetector.Face.CONFIDENCE_THRESHOLD) {
             return;
-        }
-
-        // 人脸识别
-        if (!mIsFaceRecognizing && mIsFaceRecg) {
-            mIsFaceRecognizing = true;
-            mFaceHandler.obtainMessage(MSG_FACE_RECOGIZE, data).sendToTarget();
         }
 
         PointF mid = new PointF();
@@ -416,7 +347,7 @@ public class CameraEvent implements Camera.PreviewCallback{
         dis = mid.x / WIDTH - 0.5;
         or = dis < 0 ? NECK_RIGHT : NECK_LEFT;
         grad = Math.atan(Math.abs(dis) / mRotateParam);
-        degree = (int)Math.toDegrees(grad);
+        degree = (int) Math.toDegrees(grad);
         if (or == NECK_LEFT)
             degree -= 2;
         else
@@ -432,7 +363,7 @@ public class CameraEvent implements Camera.PreviewCallback{
                 }
             }
         }
-    }
+    }*/
 
     private boolean neckTilt(int angle, int orientation) {
         angle *= orientation;
@@ -451,6 +382,7 @@ public class CameraEvent implements Camera.PreviewCallback{
     private void neckRotate(int angle, int orientation) {
         angle *= orientation;
 
+        // 底盘不转动
         /*int tmpAngle = mNowRotateAngle + angle;
 
         if (tmpAngle > HEAD_RIGHT_MAX)
@@ -468,7 +400,7 @@ public class CameraEvent implements Camera.PreviewCallback{
 
         mNowRotateAngle += angle;
         if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
-            mRobotCtrl.turn(-10*orientation, 1);
+            mRobotCtrl.turn(-10 * orientation, 1);
             mNowRotateAngle -= angle;
         } else {
             mNeckSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 800, 0);
@@ -482,21 +414,22 @@ public class CameraEvent implements Camera.PreviewCallback{
         private int mCurIndex;
         private int mMaxCount;
         private boolean mIsFinish;
-        private byte[][] mBuffers;
         private Handler mHandler;
 
+        private LableInfo[] mBuffers;
+
         public FrameDecode(int bufcount) {
-            mBuffers = new byte[bufcount][];
+            mBuffers = new LableInfo[bufcount];
             mIndex = 0;
             mCurIndex = 0;
             mIsFinish = false;
             mMaxCount = bufcount;
         }
 
-        public void addBuffer(final byte[] data) {
+        public void addBuffer(final LableInfo face) {
             synchronized (mBuffers) {
                 mIndex %= mMaxCount;
-                mBuffers[mIndex++] = data;
+                mBuffers[mIndex++] = face;
             }
         }
 
@@ -505,7 +438,7 @@ public class CameraEvent implements Camera.PreviewCallback{
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    byte[] data;
+                    LableInfo data;
                     while (!mIsFinish) {
                         mCurIndex %= mMaxCount;
                         synchronized (mBuffers) {
@@ -516,6 +449,7 @@ public class CameraEvent implements Camera.PreviewCallback{
                         mCurIndex++;
                         if (data != null) {
                             action.run(data);
+                            data = null;
                         }
 
                         try {
@@ -585,6 +519,7 @@ public class CameraEvent implements Camera.PreviewCallback{
     }
 
     static int mImgCount = 0;
+
     private void saveBitmap(Bitmap bitmap) {
         File file = new File("/sdcard/DCIM/Camera/" + (mImgCount++) + "png");
         if (file.exists()) {
