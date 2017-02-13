@@ -39,6 +39,8 @@ public class CameraEvent implements Camera.PreviewCallback{
     private final int NECK_RIGHT = -1;
     public static final int HEAD_LEFT_MAX = -30;
     public static final int HEAD_RIGHT_MAX = 30;
+    public static final int HEAD_RISE_MAX = 25;
+    public static final int HEAD_BOW_MAX = -15;
 
     private RobotMotion mRobotCtrl;
     private FaceDetector mFaceDetector;
@@ -46,6 +48,7 @@ public class CameraEvent implements Camera.PreviewCallback{
     private FrameDecode mHandDecode;
     private FaceRecgUtil mFaceRecg;
     private CameraEventListener mCallback;
+    private RandomFindFace mRandomFindFace;
 
     private Context mContext;
     private Camera mCamera;
@@ -62,7 +65,9 @@ public class CameraEvent implements Camera.PreviewCallback{
     private boolean mIsHandCover;
     private boolean mNeckRunning;
     private boolean mIsFaceRecognizing;
+    private boolean mIsFindFace;
 
+    private int mFindFailCount;
     private int mNeckSession;
 
     public static CameraEvent getInstance(Context context) {
@@ -87,6 +92,63 @@ public class CameraEvent implements Camera.PreviewCallback{
             }
         }
     };
+
+    private class RandomFindFace implements Runnable {
+        private Handler mRunHandler;
+        private int mHeadIndex;
+        private boolean mIsAsrResp;
+
+        RandomFindFace(Handler handler) {
+            mRunHandler = handler;
+            mHeadIndex = 0;
+        }
+
+        public void start() {
+            if (mRunHandler.hasCallbacks(this))
+                return;
+
+            mIsAsrResp = false;
+            mRunHandler.postDelayed(this, 1000);
+        }
+
+        public void onAsrResp() {
+            mIsAsrResp = true;
+        }
+
+        @Override
+        public void run() {
+            if (mIsFindFace) return;
+            if (!mIsAsrResp) {
+                mRunHandler.postDelayed(this, 500);
+                return;
+            }
+
+            switch (mHeadIndex) {
+                case 0:
+                    setNeckTiltAngle(15);
+                    break;
+                case 1:
+                    setNeckRotateAngle(20);
+                    break;
+                case 2:
+                    setNeckRotateAngle(-20);
+                    break;
+                case 3:
+                    setNeckRotateAngle(0);
+                    break;
+                case 4:
+                    setNeckTiltAngle(-15);
+                    break;
+
+                default:
+                    break;
+            }
+            mHeadIndex += 1;
+            mHeadIndex %= 5;
+
+            mRunHandler.postDelayed(this, 2000);
+        }
+    }
 
     private CameraEvent(Context context) {
         mContext = context;
@@ -152,6 +214,7 @@ public class CameraEvent implements Camera.PreviewCallback{
         HandlerThread eventThread = new HandlerThread("Event Handler");
         eventThread.start();
         mEventHandler = new EventHandler(eventThread.getLooper());
+        mRandomFindFace = new RandomFindFace(mEventHandler);
 
         HandlerThread faceThread = new HandlerThread("Face Recognize");
         faceThread.start();
@@ -191,8 +254,10 @@ public class CameraEvent implements Camera.PreviewCallback{
 
             mEventHandler.removeMessages(MSG_EVENT_REPORT);
             mEventHandler.removeMessages(MSG_PREVIEW_FRAME);
+            mEventHandler.removeMessages(MSG_RANDOM_FIND_FACE);
             mEventHandler.getLooper().quitSafely();
             mEventHandler = null;
+            mRandomFindFace = null;
         }
     }
 
@@ -221,6 +286,8 @@ public class CameraEvent implements Camera.PreviewCallback{
 
             mFaceDecode.stop();
             mHandDecode.stop();
+
+            mEventHandler.removeCallbacks(mRandomFindFace);
         }
     }
 
@@ -252,6 +319,17 @@ public class CameraEvent implements Camera.PreviewCallback{
         }
     }
 
+    public void setNeckTiltAngle(int angle) {
+        if (HEAD_BOW_MAX <= angle && angle <= HEAD_RISE_MAX) {
+            mNowTiltAngle = angle;
+            mRobotCtrl.runMotor(RobotMotion.Motors.NECK_TILT, mNowTiltAngle, 800, 0);
+        }
+    }
+
+    public void setAsrResult(String text) {
+        mRandomFindFace.onAsrResp();
+    }
+
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
         //Util.Logd(TAG, "onPreviewFrame");
@@ -274,6 +352,7 @@ public class CameraEvent implements Camera.PreviewCallback{
     private final int MSG_PREVIEW_FRAME = 0;
     private final int MSG_FACE_RECOGIZE = 1;
     private final int MSG_EVENT_REPORT  = 2;
+    private final int MSG_RANDOM_FIND_FACE = 3;
     private class EventHandler extends Handler {
         public EventHandler(Looper looper) {
             super(looper);
@@ -319,12 +398,6 @@ public class CameraEvent implements Camera.PreviewCallback{
             //Util.Logd(TAG, "Face Frame");
             if (!mNeckRunning)
                 findface(data);
-
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                // ignore
-            }
         }
     };
 
@@ -387,8 +460,15 @@ public class CameraEvent implements Camera.PreviewCallback{
         long time2 = System.currentTimeMillis();
         //Util.Logd(TAG, "Conver:" + (time1 - start) + "ms  Find:" + (time2 - time1) + "ms");
         if (count < 1 || faces[0].confidence() < FaceDetector.Face.CONFIDENCE_THRESHOLD) {
+            if (mIsFindFace && ++mFindFailCount > 10) {
+                mIsFindFace = false;
+                mRandomFindFace.start();
+            }
             return;
         }
+
+        mIsFindFace = true;
+        mFindFailCount = 0;
 
         // 人脸识别
         if (!mIsFaceRecognizing && mIsFaceRecg) {
@@ -438,7 +518,7 @@ public class CameraEvent implements Camera.PreviewCallback{
         angle *= orientation;
         mNowTiltAngle += angle;
 
-        if (mNowTiltAngle > 25 | mNowTiltAngle < -15) {
+        if (mNowTiltAngle > HEAD_RISE_MAX | mNowTiltAngle < HEAD_BOW_MAX) {
             mNowTiltAngle -= angle;
             return false;
         }
@@ -450,7 +530,6 @@ public class CameraEvent implements Camera.PreviewCallback{
 
     private void neckRotate(int angle, int orientation) {
         angle *= orientation;
-
         /*int tmpAngle = mNowRotateAngle + angle;
 
         if (tmpAngle > HEAD_RIGHT_MAX)
@@ -468,7 +547,7 @@ public class CameraEvent implements Camera.PreviewCallback{
 
         mNowRotateAngle += angle;
         if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
-            mRobotCtrl.turn(-10*orientation, 1);
+            mRobotCtrl.turn(-5*orientation, 2);
             mNowRotateAngle -= angle;
         } else {
             mNeckSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 800, 0);
@@ -514,12 +593,13 @@ public class CameraEvent implements Camera.PreviewCallback{
                         }
 
                         mCurIndex++;
+                        if (mIsFinish) break;
                         if (data != null) {
                             action.run(data);
                         }
 
                         try {
-                            Thread.sleep(5);
+                            Thread.sleep(10);
                         } catch (InterruptedException e) {
                             // ignore
                         }

@@ -16,7 +16,7 @@
     <!--嘘-->
     <string name="mood_shh"></string>
 
-    <string name="mood_shy">紧张</string>
+    <string name="mood_shy">紧张|害羞</string>
 
     <!--手捂着嘴笑-->
     <string name="mood_cover_smile">孤独|陪着你</string>
@@ -25,7 +25,7 @@
     <string name="mood_grimace">喜欢你|不讨厌|呵呵|小脑袋有点转不过来了</string>
 
     <!--调皮-->
-    <string name="mood_naughty">害羞|人见人爱|我很可爱</string>
+    <string name="mood_naughty">人见人爱|我很可爱</string>
 
     <!--伤心-->
     <string name="mood_hearted"></string>

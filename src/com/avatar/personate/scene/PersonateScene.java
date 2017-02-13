@@ -22,6 +22,7 @@ public abstract class PersonateScene {
     public static final int SCENE_DEFAULT = 0;
 
     public static final int MSG_ASR_BEGIN   = 12;
+    public static final int MSG_ASR_RESULT  = 13;
     public static final int MSG_NLU_EVENT   = 0;
     public static final int MSG_SPEAK_BEGIN = 1;
     public static final int MSG_SPEAK_END   = 2;

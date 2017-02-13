@@ -203,7 +203,9 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
             if (!TextUtils.isEmpty(text)) {
                 Util.Loge(TAG, "ASR Result: " + text);
                 mDialogAdapter.addQuestion((String) text);
-                //mDialogAdapter.addQuestion("我不知道你在说什么呢呢！看来我要学的还有很多呢");
+                if (mPersonate != null) {
+                    mPersonate.onAsrResult(text);
+                }
             }
             return false;
         }

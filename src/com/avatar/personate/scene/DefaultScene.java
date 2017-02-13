@@ -4,26 +4,19 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Bitmap;
-import android.graphics.PointF;
-import android.graphics.SurfaceTexture;
-import android.hardware.Camera;
 import android.media.AudioManager;
-import android.media.FaceDetector;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
 import android.os.Message;
 import android.robot.motion.RobotMotion;
+import android.robot.motion.RobotMotion.Emoji;
 import android.robot.scheduler.RobotConstants;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
-import com.avatar.personate.ThinkView;
 import com.avatar.personate.Util;
 import com.avatar.robot.Robot;
 
@@ -32,16 +25,15 @@ import com.avatar.robot.util.SystemMotion;
 import com.avatarmind.vision.cover.handcover;
 import com.avatarmind.vision.wave.handwave;
 
-
 public class DefaultScene extends PersonateScene {
     private final String TAG = "DefaultScene";
 
     private final int STATE_ACTIVE = 0;
     private final int STATE_IDLE = 1;
     private final long IDLE_TIME = 5 * 60 * 1000; //ms
-    private final long COVER_FREQ = 6 * 1000; //ms
+    private final long COVER_FREQ = 3 * 1000; //ms
 
-    private Map<Integer, String[]> mMoodMap;
+    private Set<MoodRes> mMoodSet;
 
     private RobotMotion mRobotCtl;
     private AudioManager mAudioManager;
@@ -103,7 +95,7 @@ public class DefaultScene extends PersonateScene {
         mIsWorking = true;
         mIsTurning = false;
         mState = STATE_ACTIVE;
-        randomActionReset();
+        idleAction();
         registerEvent();
     }
 
@@ -152,7 +144,9 @@ public class DefaultScene extends PersonateScene {
                     mHandler.sendMessageDelayed(
                             mHandler.obtainMessage(MSG_SET_EXPRESSION, mExpression_id, -1), 100);
                 }
-
+                break;
+            case MSG_ASR_RESULT:
+                mCameraEvent.setAsrResult((String)msg.obj);
                 break;
 
             case MSG_NLU_EVENT:
@@ -254,7 +248,7 @@ public class DefaultScene extends PersonateScene {
     }
 
     private void registerRCEvent(IntentFilter intent) {
-        intent.addAction(RobotConstants.ACTION_RC_EVENTS);
+        //intent.addAction(RobotConstants.ACTION_RC_EVENTS);
     }
 
     private void registerEvent() {
@@ -289,13 +283,25 @@ public class DefaultScene extends PersonateScene {
         mCameraEvent.stop();
         mCameraEvent.uninit();
     }
+    
+    private class MoodRes {
+        public int mEmoji;
+        public short[] mMotions;
+        public String[] mMoods;
+        
+        public MoodRes(int emoji, short[] motions, String[] moods) {
+            this.mEmoji = emoji;
+            this.mMotions = motions;
+            this.mMoods = moods;
+        }
+    }
 
     private void loadMoodResource() {
-        if (mMoodMap == null)
-            mMoodMap = new HashMap<Integer, String[]>();
+        if (mMoodSet == null)
+            mMoodSet = new HashSet<MoodRes>();
         else
-            mMoodMap.clear();
-
+            mMoodSet.clear();
+        
         String[] md_smile = mContext.getString(R.string.mood_smile).split("\\|");
         String[] md_sad = mContext.getString(R.string.mood_sad).split("\\|");
         String[] md_surprise = mContext.getString(R.string.mood_surprise).split("\\|");
@@ -305,14 +311,22 @@ public class DefaultScene extends PersonateScene {
         String[] md_naughty = mContext.getString(R.string.mood_naughty).split("\\|");
         String[] md_think = mContext.getString(R.string.mood_think).split("\\|");
 
-        mMoodMap.put(RobotMotion.Emoji.SMILE, md_smile);
-        mMoodMap.put(RobotMotion.Emoji.SAD, md_sad);
-        mMoodMap.put(RobotMotion.Emoji.SURPRISE, md_surprise);
-        mMoodMap.put(RobotMotion.Emoji.SHY, md_shy);
-        mMoodMap.put(RobotMotion.Emoji.COVER_SMILE, md_cover_smile);
-        mMoodMap.put(RobotMotion.Emoji.GRIMACE, md_grimace);
-        mMoodMap.put(RobotMotion.Emoji.NAUGHTY, md_naughty);
-        mMoodMap.put(RobotMotion.Emoji.THINKING, md_think);
+        mMoodSet.add(new MoodRes(Emoji.SMILE,
+                new short[]{SystemMotion.LAUGH,SystemMotion.KISS}, md_smile));
+        mMoodSet.add(new MoodRes(Emoji.SAD,
+                new short[]{SystemMotion.AKIMBO,SystemMotion.NO}, md_sad));
+        mMoodSet.add(new MoodRes(Emoji.SURPRISE,
+                new short[]{SystemMotion.HUG}, md_surprise));
+        mMoodSet.add(new MoodRes(Emoji.SHY,
+                new short[]{SystemMotion.HANDSBACK,SystemMotion.SHY}, md_shy));
+        mMoodSet.add(new MoodRes(Emoji.COVER_SMILE,
+                new short[]{SystemMotion.KISS,SystemMotion.YES,SystemMotion.WE}, md_cover_smile));
+        mMoodSet.add(new MoodRes(Emoji.GRIMACE,
+                new short[]{SystemMotion.WORRY}, md_grimace));
+        mMoodSet.add(new MoodRes(Emoji.NAUGHTY,
+                new short[]{SystemMotion.SHY, SystemMotion.CLAP}, md_naughty));
+        mMoodSet.add(new MoodRes(Emoji.THINKING,
+                new short[]{SystemMotion.SHY}, md_think));
     }
 
     private final BroadcastReceiver mEventReceiver = new BroadcastReceiver() {
@@ -321,7 +335,7 @@ public class DefaultScene extends PersonateScene {
             String strAction = intent.getAction();
             Util.Logd(TAG, "onReceive:" + intent.getAction());
 
-            if (strAction.equals(RobotConstants.ACTION_RC_EVENTS)) {
+            /*if (strAction.equals(RobotConstants.ACTION_RC_EVENTS)) {
                 int type = intent.getIntExtra("event_type", 0);
                 int pos = intent.getIntExtra("position", -1);
                 mHandler.obtainMessage(MSG_RC_EVENT, type, -pos).sendToTarget();
@@ -333,7 +347,7 @@ public class DefaultScene extends PersonateScene {
                 mHandler.obtainMessage(MSG_TOUCH_EVENT, RobotConstants.RF_LEFT_SHOULDER_TOUCH).sendToTarget();
             } else if (strAction.equals(RobotConstants.AI_ACTION_RIGHT_SHOULDER_TOUCHED)) {
                 mHandler.obtainMessage(MSG_TOUCH_EVENT, RobotConstants.RF_RIGHT_SHOULDER_TOUCH).sendToTarget();
-            }
+            }*/
         }
     };
 
@@ -382,21 +396,28 @@ public class DefaultScene extends PersonateScene {
 
 
     private void doNluResponse(int requestId, String text) {
-        mExpression_id = -1;
+        int expression = -1;
+        short motion = -1;
 
-        Iterator iter = mMoodMap.entrySet().iterator();
+        Iterator<MoodRes> iter = mMoodSet.iterator();
         while (iter.hasNext()) {
-            Map.Entry entry = (Map.Entry) iter.next();
-            String[] strMood = (String[]) entry.getValue();
-            for (String mood : strMood) {
+            MoodRes moodRes = iter.next();
+            for (String mood : moodRes.mMoods) {
                 if (text.contains(mood)) {
-                    mExpression_id = (Integer) entry.getKey();
+                    expression = moodRes.mEmoji;
+                    int rand = (int)(10 * Math.random());
+                    rand %= moodRes.mMotions.length;
+                    motion = moodRes.mMotions[rand];
+                    Util.Logd(TAG, "Emo:" + expression + ",Mo:" + motion);
+                    mRobotCtl.doAction(motion, 1, 3000);
                     break;
                 }
             }
 
-            if (mExpression_id != -1)
+            if (expression != -1) {
+                mExpression_id = expression;
                 break;
+            }
         }
     }
 
@@ -492,7 +513,7 @@ public class DefaultScene extends PersonateScene {
                 sleep(10000);
             }
 
-            randomActionReset();
+            idleAction();
             mIdleMotionThread = null;
 
             // 延后5秒做下组动作
@@ -514,6 +535,11 @@ public class DefaultScene extends PersonateScene {
         } catch (InterruptedException e) {
             Util.Logd(TAG, "Thread interrupt!");
         }
+    }
+
+    private void idleAction() {
+        mRobotCtl.reset(RobotMotion.Units.NECT);
+        mRobotCtl.doAction(SystemMotion.IDLE, 0, 500);
     }
 
     private void randomActionReset() {
