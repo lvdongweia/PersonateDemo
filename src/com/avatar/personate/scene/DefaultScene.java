@@ -339,7 +339,7 @@ public class DefaultScene extends PersonateScene {
                 int type = intent.getIntExtra("event_type", 0);
                 int pos = intent.getIntExtra("position", -1);
                 mHandler.obtainMessage(MSG_RC_EVENT, type, -pos).sendToTarget();
-            } else if (strAction.equals(RobotConstants.AI_ACTION_LEFT_OXTER_TOUCHED)) {
+            } else*/ if (strAction.equals(RobotConstants.AI_ACTION_LEFT_OXTER_TOUCHED)) {
                 mHandler.obtainMessage(MSG_TOUCH_EVENT, RobotConstants.RF_LEFT_OXTER_TOUCH).sendToTarget();
             } else if (strAction.equals(RobotConstants.AI_ACTION_RIGHT_OXTER_TOUCHED)) {
                 mHandler.obtainMessage(MSG_TOUCH_EVENT, RobotConstants.RF_RIGHT_OXTER_TOUCH).sendToTarget();
@@ -347,7 +347,7 @@ public class DefaultScene extends PersonateScene {
                 mHandler.obtainMessage(MSG_TOUCH_EVENT, RobotConstants.RF_LEFT_SHOULDER_TOUCH).sendToTarget();
             } else if (strAction.equals(RobotConstants.AI_ACTION_RIGHT_SHOULDER_TOUCHED)) {
                 mHandler.obtainMessage(MSG_TOUCH_EVENT, RobotConstants.RF_RIGHT_SHOULDER_TOUCH).sendToTarget();
-            }*/
+            }
         }
     };
 

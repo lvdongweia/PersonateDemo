@@ -441,7 +441,7 @@ public class CameraEvent implements Camera.PreviewCallback{
     };
 
     private void getFocusDistance() {
-        double angle = 30.0;
+        double angle = 30.0; // 实际测量的摄像头可视角度
 
         double focusDistance = (WIDTH / 2.0) / Math.tan(Math.toRadians(angle));
         mRotateParam = focusDistance / WIDTH;
@@ -547,7 +547,7 @@ public class CameraEvent implements Camera.PreviewCallback{
 
         mNowRotateAngle += angle;
         if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
-            mRobotCtrl.turn(-5*orientation, 2);
+            mRobotCtrl.turn(-5*orientation, 1);
             mNowRotateAngle -= angle;
         } else {
             mNeckSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 800, 0);
