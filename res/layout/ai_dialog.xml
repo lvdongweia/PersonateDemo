@@ -9,7 +9,8 @@
         android:layout_width="match_parent"
         android:layout_height="97px"
         android:paddingTop="15px"
-        android:src="@drawable/btn_up" >
+        android:src="@drawable/btn_up"
+        style="@android:style/TextAppearance.Widget.EditText">
     </ImageView>
 
     <LinearLayout

@@ -20,6 +20,8 @@ import com.avatar.personate.R;
 public class PersonateService extends Service {
     private final String TAG = "PersonateService";
 
+    private static final String ACTION_PLAYER_STOP = "com.avatar.player.stop";
+
     private AudioManager mAudioManager;
     private SpeechManager mSpeechManager;
 
@@ -28,7 +30,11 @@ public class PersonateService extends Service {
         public void onWakeUp(int angle) {
             Util.Logd(TAG, "MicArrayEventListener");
             if (!isRunningForeground(PersonateService.this)) {
-                Util.Logd(TAG, "PersonateDemo is not running, so start it");
+                Util.Logd(TAG, "Set PersonateDemo to foreground");
+
+                // stop avatar player if exists
+                sendBroadcast(new Intent(ACTION_PLAYER_STOP));
+
                 String iPal = getString(R.string.iPaliPal);
                 mSpeechManager.startSpeaking(iPal, true);
 

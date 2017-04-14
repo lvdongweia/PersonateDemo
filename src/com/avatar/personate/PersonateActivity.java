@@ -229,7 +229,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     private final SpeechManager.AvwListener mAvwListener = new SpeechManager.AvwListener() {
         @Override
         public void onBegin() {
-            Util.Loge(TAG, "AVW: Begin");
+            //Util.Loge(TAG, "AVW: Begin");
             //Message.obtain(mHandler, MSG_START_LISTENING).sendToTarget();
         }
 
@@ -251,13 +251,13 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public void onError(int error) {
-            Util.Loge(TAG, "AVW: Error");
+            //Util.Loge(TAG, "AVW: Error");
             // Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
         }
 
         @Override
         public void onEnd() {
-            Util.Loge(TAG, "AVW: End");
+            //Util.Loge(TAG, "AVW: End");
             /*Message.obtain(mHandler, MSG_STOP_LISTENING).sendToTarget();
             if (mSpeechManager.getAsrEnable()) {
                 Message.obtain(mHandler, MSG_START_THINKING).sendToTarget();
@@ -300,7 +300,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
     private final SpeechManager.TtsListener mTtsListener = new SpeechManager.TtsListener() {
         @Override
         public void onBegin(int requestId) {
-            Util.Loge(TAG, "TTS: onBegin");
+            //Util.Loge(TAG, "TTS: onBegin");
             Message.obtain(mHandler, MSG_START_SPEAKING).sendToTarget();
             if (mPersonate != null)
                 mPersonate.onTtsBegin(requestId);
@@ -308,7 +308,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public void onError(int requestId) {
-            Util.Loge(TAG, "TTS: onError");
+            //Util.Loge(TAG, "TTS: onError");
             Message.obtain(mHandler, MSG_STOP_SPEAKING).sendToTarget();
             if (mPersonate != null)
                 mPersonate.onTtsError(requestId);
@@ -316,7 +316,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
 
         @Override
         public void onEnd(int requestId) {
-            Util.Loge(TAG, "TTS: onEnd");;
+            //Util.Loge(TAG, "TTS: onEnd");;
             Message.obtain(mHandler, MSG_STOP_SPEAKING).sendToTarget();
             if (mPersonate != null)
                 mPersonate.onTtsEnd(requestId);
@@ -596,7 +596,7 @@ public class PersonateActivity extends Activity implements View.OnClickListener 
                     break;
 
                 case MSG_STOP_SPEAKING:
-                    stopSpeakAnimation();
+                    //stopSpeakAnimation();
                     //Util.Logd(TAG, "MSG_STOP_SPEAKING");
                     //stopStateAnimation();
                     break;

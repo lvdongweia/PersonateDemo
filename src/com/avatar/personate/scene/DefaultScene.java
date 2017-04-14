@@ -11,10 +11,8 @@ import android.robot.motion.RobotMotion.Emoji;
 import android.robot.scheduler.RobotConstants;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Random;
 import java.util.Set;
 
 import com.avatar.personate.Util;
@@ -31,9 +29,10 @@ public class DefaultScene extends PersonateScene {
     private final int STATE_ACTIVE = 0;
     private final int STATE_IDLE = 1;
     private final long IDLE_TIME = 5 * 60 * 1000; //ms
-    private final long COVER_FREQ = 3 * 1000; //ms
+    private final long COVER_FREQ = 5 * 1000; //ms
 
     private Set<MoodRes> mMoodSet;
+    private String[] mHelloWords;
 
     private RobotMotion mRobotCtl;
     private AudioManager mAudioManager;
@@ -206,10 +205,10 @@ public class DefaultScene extends PersonateScene {
 
                 mHandler.removeMessages(MSG_HAND_WAVE_DETECT);
                 time = System.currentTimeMillis();
-                String dontKnow = mContext.getString(R.string.noknow);
+                String dontKnow = mContext.getString(R.string.hi);
                 if ((time - mLastHandEventTime) > COVER_FREQ) {
                     mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
-                    if (mPeopleName == null || (time - mLastPeopleTime) > 2 * COVER_FREQ) {
+                    if (mPeopleName == null || (time - mLastPeopleTime) > 2000) {
                         startSpeaking(dontKnow);
                         mPeopleName = null;
                     } else {
@@ -225,7 +224,8 @@ public class DefaultScene extends PersonateScene {
                 break;
 
             case MSG_SAY_HELLO:
-                String strCover = mContext.getString(R.string.hello);
+                int random = (int)(Math.random()*10) % mHelloWords.length;
+                String strCover = mHelloWords[random];
                 mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
                 startSpeaking(strCover);
                 break;
@@ -253,27 +253,21 @@ public class DefaultScene extends PersonateScene {
 
     private void registerEvent() {
         mAudioManager.setMicArrayEventListener(mContext.getPackageName(), mMicArraryEvent);
-        IntentFilter intent = new IntentFilter();
 
+        IntentFilter intent = new IntentFilter();
         registerTouchEvent(intent);
         registerRCEvent(intent);
-
         mContext.registerReceiver(mEventReceiver, intent);
 
         // start detect camera event
-        new Thread(new Runnable() {
+        mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (mCameraEvent.init()) {
-                    try {
-                        Thread.sleep(1000);
-                        mCameraEvent.start();
-                    } catch (InterruptedException e) {
-                        // ignore
-                    }
+                    mCameraEvent.start();
                 }
             }
-        }).start();
+        }, 1000);
     }
 
     private void unregisterEvent() {
@@ -327,6 +321,8 @@ public class DefaultScene extends PersonateScene {
                 new short[]{SystemMotion.SHY, SystemMotion.CLAP}, md_naughty));
         mMoodSet.add(new MoodRes(Emoji.THINKING,
                 new short[]{SystemMotion.SHY}, md_think));
+
+        mHelloWords = mContext.getString(R.string.hello).split("\\|");
     }
 
     private final BroadcastReceiver mEventReceiver = new BroadcastReceiver() {
@@ -422,7 +418,7 @@ public class DefaultScene extends PersonateScene {
     }
 
     private void doExpression(int requestId) {
-        Util.Logd(TAG, "Set expression:" + requestId);
+        //Util.Logd(TAG, "Set expression:" + requestId);
         mRobotCtl.emoji(requestId);
     }
 
@@ -436,7 +432,7 @@ public class DefaultScene extends PersonateScene {
             if (mIsTurning) return;
 
             int headPos = mCameraEvent.getNeckRotateAngle();
-            Util.Logd(TAG, "##Mic Ori:" + angle + "  Head:" + headPos + "##");
+            Util.Logd(TAG, "##Mic Ori:" + angle + "  Head Pos:" + headPos + "##");
 
             int turnAngle = 0;
             if (angle <= 180) {
@@ -462,8 +458,9 @@ public class DefaultScene extends PersonateScene {
                 // if not need turn, send MSG_SAY_HELLO directelly
                 mHandler.sendEmptyMessage(MSG_SAY_HELLO);
             }
+
             mCameraEvent.setNeckRotateAngle(headPos);
-            Util.Logd(TAG, "##HeadPos:" + headPos + "  WheelPos:" + turnAngle + "##");
+            Util.Logd(TAG, "##New HeadPos:" + headPos + "  WheelTurn:" + turnAngle + "##");
 
             boolean isSuc = mAudioManager.setMicArrayOrientation(AudioManager.MIC_ARRAY_ORI_0_360);
             if (!isSuc) {

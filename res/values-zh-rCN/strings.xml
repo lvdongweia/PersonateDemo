@@ -37,7 +37,7 @@
         <item>继续讲</item>
     </string-array>
 
-    <string name="hello">你好</string>
+    <string name="hello">你好啊|叫我干嘛|我在这儿呢|找我什么事</string>
     <string name="bye">再见</string>
 
     <string name="cover_eye">啊呀，你挡住我的眼睛了</string>
