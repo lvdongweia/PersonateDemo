@@ -62,14 +62,8 @@ public class DefaultScene extends PersonateScene {
         mAudioManager = new AudioManager(context);
         mRobotCtl = new RobotMotion();
         mRobotCtl.setListener(new RobotMotion.Listener() {
-
             @Override
-            public void onStatusChanged(int status) {
-                Util.Logd(TAG, "onStatusChanged");
-            }
-
-            @Override
-            public void onCompleted(int session_id, int result) {
+            public void onCompleted(int session_id, int result, int errorcode) {
                 if (mIsTurning && session_id == mTurnSession) {
                     mIsTurning = false;
                     Util.Logd(TAG, "Turn Over.");

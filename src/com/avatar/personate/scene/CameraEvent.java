@@ -36,8 +36,9 @@ public class CameraEvent implements Camera.PreviewCallback {
     private final int HEIGHT = 480;
     private final int NECK_RISE = 1;
     private final int NECK_BOW = -1;
-    private final int NECK_LEFT = 1;
-    private final int NECK_RIGHT = -1;
+    private final int NECK_LEFT = -1;
+    private final int NECK_RIGHT = 1;
+
     public static final int HEAD_LEFT_MAX = -30;
     public static final int HEAD_RIGHT_MAX = 30;
     public static final int HEAD_RISE_MAX = 25;
@@ -56,8 +57,8 @@ public class CameraEvent implements Camera.PreviewCallback {
     private Handler mEventHandler;
     private Handler mFaceHandler;
 
-    private int mNowRotateAngle = 0;
-    private int mNowTiltAngle = 0;
+    private volatile int mNowRotateAngle = 0;
+    private volatile int mNowTiltAngle = 0;
     private int mFaceLostCount = 0;
     private double mRotateParam;
     private double mTiltParam;
@@ -65,6 +66,7 @@ public class CameraEvent implements Camera.PreviewCallback {
     private boolean mFaceRecgEnable;
     private boolean mHandEventEnable;
     private boolean mIsFaceRecging;
+    private int mAdjustRotOri = NECK_RIGHT;
 
     private SessionObject mHeadRotate = new SessionObject();
     private SessionObject mHeadTilt = new SessionObject();
@@ -84,16 +86,13 @@ public class CameraEvent implements Camera.PreviewCallback {
 
     private final RobotMotion.Listener mMotionListener = new RobotMotion.Listener() {
         @Override
-        public void onStatusChanged(int status) {
-
-        }
-
-        @Override
-        public void onCompleted(int session_id, int result) {
-            if (mHeadTilt.mSession == session_id)
-                mHeadTilt.mIsExcting = false;
-            if (mHeadRotate.mSession == session_id)
-                mHeadRotate.mIsExcting = false;
+        public void onCompleted(int session_id, int result, int errorcode) {
+            synchronized (this) {
+                if (mHeadTilt.mSession == session_id)
+                    mHeadTilt.mIsExcting = false;
+                if (mHeadRotate.mSession == session_id)
+                    mHeadRotate.mIsExcting = false;
+            }
         }
     };
 
@@ -410,16 +409,14 @@ public class CameraEvent implements Camera.PreviewCallback {
         //long time2 = System.currentTimeMillis();
         //Util.Logd(TAG, "Conver:" + (time1 - start) + "ms  Find:" + (time2 - time1) + "ms");
         if (count < 1 || faces[0].confidence() < FaceDetector.Face.CONFIDENCE_THRESHOLD) {
-            /*if (mFaceLostCount++ > 10) {
+            if (mFaceLostCount++ > 10) {
+                mFaceLostCount = 0; // reset count
                 mEventHandler.sendEmptyMessage(MSG_FACE_LOST);
-            }*/
+            }
             return;
         }
 
-        /*if (mFaceLostCount != 0) {
-            mFaceLostCount = 0; // reset count
-            mEventHandler.removeMessages(MSG_FACE_LOST);
-        }*/
+        mFaceLostCount = 0; // reset count
 
         // 人脸识别
         if (!mIsFaceRecging && mFaceRecgEnable) {
@@ -445,10 +442,10 @@ public class CameraEvent implements Camera.PreviewCallback {
 
         // neck rotate
         dis = mid.x / WIDTH - 0.5;
-        or = dis < 0 ? NECK_RIGHT : NECK_LEFT;
+        or = dis < 0 ? NECK_LEFT : NECK_RIGHT;
         grad = Math.atan(Math.abs(dis) / mRotateParam);
         degree = (int) Math.toDegrees(grad);
-        if (or == NECK_LEFT)
+        if (or == NECK_RIGHT)
             degree -= 2;
         else
             degree += 2;
@@ -464,8 +461,10 @@ public class CameraEvent implements Camera.PreviewCallback {
     }
 
     private void changeHeadPosition(int tilt, int rotate) {
-        if (mHeadTilt.mIsExcting || mHeadRotate.mIsExcting)
-            return;
+        synchronized (this) {
+            if (mHeadTilt.mIsExcting || mHeadRotate.mIsExcting)
+                return;
+        }
 
         if (tilt != 0) {
             neckTilt(tilt);
@@ -478,11 +477,32 @@ public class CameraEvent implements Camera.PreviewCallback {
         Util.Logd(TAG, "New Neck Pos: R:" + mNowRotateAngle + "  T:" + mNowTiltAngle);
     }
 
+    private void adjustHeadPosition() {
+        Util.Logd(TAG, "adjustHeadPosition");
+
+        int tTiltAngle = 0;
+        int tRotAngle = 0;
+
+        if (mNowTiltAngle < HEAD_RISE_MAX) {
+            tTiltAngle = 5;
+        }
+        else {
+            if (mNowRotateAngle == HEAD_RIGHT_MAX) {
+                mAdjustRotOri = NECK_LEFT;
+            }
+            else if (mNowRotateAngle == HEAD_LEFT_MAX) {
+                mAdjustRotOri = NECK_RIGHT;
+            }
+
+            tRotAngle = 10 * mAdjustRotOri;
+        }
+        changeHeadPosition(tTiltAngle, tRotAngle);
+    }
+
     private synchronized void neckTilt(int angle) {
         mNowTiltAngle += angle;
-
         if (mNowTiltAngle > HEAD_RISE_MAX || mNowTiltAngle < HEAD_BOW_MAX) {
-            mNowTiltAngle -= angle;
+            mNowTiltAngle = (angle > 0 ? HEAD_RISE_MAX : HEAD_BOW_MAX);
             return;
         }
 
@@ -491,39 +511,14 @@ public class CameraEvent implements Camera.PreviewCallback {
     }
 
     private synchronized void neckRotate(int angle) {
-        /*int tmpAngle = mNowRotateAngle + angle;
-
-        if (tmpAngle > HEAD_RIGHT_MAX)
-            tmpAngle = HEAD_RIGHT_MAX;
-        else if (tmpAngle < HEAD_LEFT_MAX)
-            tmpAngle = HEAD_LEFT_MAX;
-
-        if (mNowRotateAngle == tmpAngle)
-            return;
-
-        mNowRotateAngle = tmpAngle;
-        mNeckSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 800, 0);
-        mNeckRunning = true;
-        */
-
         mNowRotateAngle += angle;
+        if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
+            mHeadRotate.mSession = mRobotCtrl.turn(2*(angle > 0 ? NECK_RIGHT : NECK_LEFT), 1);
+            mNowRotateAngle = (angle > 0 ? HEAD_RIGHT_MAX : HEAD_LEFT_MAX);
+        }
 
         mHeadRotate.mIsExcting = true;
-        if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
-            mHeadRotate.mSession = mRobotCtrl.turn(5*(angle > 0 ? NECK_RIGHT : NECK_LEFT), 1);
-            mNowRotateAngle -= angle;
-        } else {
-            mHeadRotate.mSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 800, 0);
-        }
-    }
-
-    private void adjustHeadPosition() {
-        Util.Logd(TAG, "adjustHeadPosition");
-
-        if (mNowTiltAngle < 10 && mNowTiltAngle > HEAD_BOW_MAX) {
-
-        }
-
+        mHeadRotate.mSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mNowRotateAngle, 800, 0);
     }
 
     private class FrameDecode {
