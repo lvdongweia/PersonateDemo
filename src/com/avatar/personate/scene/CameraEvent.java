@@ -15,7 +15,7 @@ import android.robot.motion.RobotMotion;
 import android.service.textservice.SpellCheckerService;
 
 import com.avatar.personate.FaceRecgUtil;
-import com.avatarmind.camera.extensions.AvatarCameraParameters;
+//import com.avatarmind.camera.extensions.AvatarCameraParameters;
 import com.avatar.personate.Util;
 import com.avatarmind.vision.cover.handcover;
 import com.avatarmind.vision.wave.handwave;
@@ -513,7 +513,7 @@ public class CameraEvent implements Camera.PreviewCallback {
     private synchronized void neckRotate(int angle) {
         mNowRotateAngle += angle;
         if (mNowRotateAngle > HEAD_RIGHT_MAX || mNowRotateAngle < HEAD_LEFT_MAX) {
-            mHeadRotate.mSession = mRobotCtrl.turn(2*(angle > 0 ? NECK_RIGHT : NECK_LEFT), 1);
+            mHeadRotate.mSession = mRobotCtrl.turn(2*(angle > 0 ? NECK_LEFT : NECK_RIGHT), 1);
             mNowRotateAngle = (angle > 0 ? HEAD_RIGHT_MAX : HEAD_LEFT_MAX);
         }
 

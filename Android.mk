@@ -13,12 +13,12 @@ LOCAL_PACKAGE_NAME := PersonateDemo
 LOCAL_CERTIFICATE := platform
 LOCAL_DEX_EXPORT := false
 
-LOCAL_REQUIRED_MODULES := \
+LOCAL_JNI_SHARED_LIBRARIES := \
 	libhandcover \
-	libhandwave \
+	libhandwave
 
-LOCAL_JAVA_LIBRARIES := \
-	com.avatarmind.camera.extensions
+#LOCAL_JAVA_LIBRARIES := \
+
 
 include $(BUILD_PACKAGE)
 
@@ -26,7 +26,9 @@ include $(BUILD_PACKAGE)
 
 include $(CLEAR_VARS)
 LOCAL_PREBUILT_LIBS := \
-	lib/libhandcover.so \
-	lib/libhandwave.so
+	libhandcover:libs/libhandcover.so \
+	libhandwave:libs/libhandwave.so
+#LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := \
+
 LOCAL_MODULE_TAGS := optional
-include $(BULID_MULTI_PREBUILT)
+include $(BUILD_MULTI_PREBUILT)
