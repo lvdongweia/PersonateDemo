@@ -21,20 +21,19 @@ public abstract class PersonateScene {
 
     public static final int SCENE_DEFAULT = 0;
 
-    public static final int MSG_ASR_BEGIN   = 12;
-    public static final int MSG_ASR_RESULT  = 13;
     public static final int MSG_NLU_EVENT   = 0;
     public static final int MSG_SPEAK_BEGIN = 1;
     public static final int MSG_SPEAK_END   = 2;
     public final int MSG_RC_EVENT    = 3;
     public final int MSG_TOUCH_EVENT = 4;
-    public final int MSG_IDLE_CHECK  = 5;
-    public final int MSG_IDLE_ACTION = 6;
-    public final int MSG_HAND_COVER_DETECT = 7;
-    public final int MSG_HAND_WAVE_DETECT = 8;
-    public final int MSG_FACE_RECONGIZE = 9;
-    public final int MSG_SAY_HELLO = 10;
-    public final int MSG_SET_EXPRESSION = 11;
+    public final int MSG_IDLE_ACTION = 5;
+    public final int MSG_HAND_COVER_DETECT = 6;
+    public final int MSG_HAND_WAVE_DETECT = 7;
+    public final int MSG_FACE_RECONGIZE = 8;
+    public final int MSG_SAY_HELLO = 9;
+    public final int MSG_SET_EXPRESSION = 10;
+    public static final int MSG_ASR_BEGIN   = 11;
+    public static final int MSG_ASR_RESULT  = 12;
 
     public PersonateScene(Context context, int scene) {
         mContext = context;

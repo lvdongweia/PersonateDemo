@@ -43,4 +43,13 @@
     <string name="hi">Hi,</string>
     <string name="iPaliPal">I here</string>
 
+    <string name="brother">Brother</string>
+    <string name="sister">Sister</string>
+    <string name="uncle">Uncle</string>
+    <string name="aunt">Aunt</string>
+    <string name="good_am">Good Morning</string>
+    <string name="good_pm">Good Afternoon</string>
+    <string name="meet_again">We Meet Again</string>
+    <string name="hi_children">Children</string>
+
 </resources>

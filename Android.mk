@@ -17,8 +17,8 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libhandcover \
 	libhandwave
 
-#LOCAL_JAVA_LIBRARIES := \
-
+LOCAL_PROGUARD_ENABLED := disabled
+LOCAL_STATIC_JAVA_LIBRARIES := RobotVision
 
 include $(BUILD_PACKAGE)
 
@@ -28,7 +28,8 @@ include $(CLEAR_VARS)
 LOCAL_PREBUILT_LIBS := \
 	libhandcover:libs/libhandcover.so \
 	libhandwave:libs/libhandwave.so
-#LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := \
+LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := \
+	RobotVision:libs/libRobotVisionService.jar
 
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_MULTI_PREBUILT)

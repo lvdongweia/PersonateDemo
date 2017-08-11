@@ -25,7 +25,12 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".service.PersonateService"/>
+        <service android:name=".service.PersonateService">
+            <intent-filter>
+                <action android:name="com.avatar.personate.SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
 
         <receiver android:name=".broadcast.PersonateReceiver">
             <intent-filter>

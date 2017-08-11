@@ -6,13 +6,17 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.os.Message;
+import android.provider.Contacts;
 import android.robot.motion.RobotMotion;
 import android.robot.motion.RobotMotion.Emoji;
 import android.robot.scheduler.RobotConstants;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import com.avatar.personate.Util;
@@ -22,6 +26,7 @@ import com.avatar.personate.R;
 import com.avatar.robot.util.SystemMotion;
 import com.avatarmind.vision.cover.handcover;
 import com.avatarmind.vision.wave.handwave;
+import com.avatar.personate.scene.CameraEvent.FaceInformation;
 
 public class DefaultScene extends PersonateScene {
     private final String TAG = "DefaultScene";
@@ -37,13 +42,13 @@ public class DefaultScene extends PersonateScene {
     private RobotMotion mRobotCtl;
     private AudioManager mAudioManager;
     private CameraEvent mCameraEvent;
+    private FaceRecord mFaceRecords;
+
+    private HandlerWatchDog mIdleWatchDog;
 
     private int mState = STATE_ACTIVE;
     private boolean mIsPersonNearby;
-    private long mLastActiveTime = System.currentTimeMillis();
     private long mLastHandEventTime = System.currentTimeMillis();
-    private long mLastPeopleTime = System.currentTimeMillis();
-    private String mPeopleName;
     private int mTurnSession;
     private boolean mIsTurning;
     private int mExpression_id = -1;
@@ -74,9 +79,20 @@ public class DefaultScene extends PersonateScene {
 
         mCameraEvent = CameraEvent.getInstance(context);
         mCameraEvent.setListener(mListener);
+        mFaceRecords = new FaceRecord(mContext);
 
         // 延后检查是否为idle状态
-        mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
+        mIdleWatchDog = new HandlerWatchDog(mHandler, IDLE_TIME, 10*1000, "IDLE STATE") {
+            @Override
+            public void onTimeout() {
+                Util.Logd(TAG, "#######Enter idle state");
+                mState = STATE_IDLE;
+                //暂停事件检测
+                mCameraEvent.setFaceDetect(false);
+                mCameraEvent.setHandCover(false);
+                mHandler.sendEmptyMessage(MSG_IDLE_ACTION);
+            }
+        };
 
         File AppDir = context.getDir("cascade", Context.MODE_PRIVATE);
         String strAppPath = AppDir.getAbsolutePath();
@@ -90,6 +106,7 @@ public class DefaultScene extends PersonateScene {
         mState = STATE_ACTIVE;
         idleAction();
         registerEvent();
+        mIdleWatchDog.start();
     }
 
     @Override
@@ -101,8 +118,8 @@ public class DefaultScene extends PersonateScene {
 
         unregisterEvent();
         mHandler.removeMessages(MSG_IDLE_ACTION);
-        mHandler.removeMessages(MSG_IDLE_CHECK);
         randomActionReset();
+        mIdleWatchDog.stop();
     }
 
     private final CameraEvent.CameraEventListener mListener = new CameraEvent.CameraEventListener() {
@@ -120,9 +137,9 @@ public class DefaultScene extends PersonateScene {
         }
 
         @Override
-        public void onFaceRecognize(String name) {
+        public void onFaceRecognize(FaceInformation face) {
             //Util.Logd(TAG, "******onFaceRecognize:" + name);
-            mHandler.obtainMessage(MSG_FACE_RECONGIZE, name).sendToTarget();
+            mHandler.obtainMessage(MSG_FACE_RECONGIZE, face).sendToTarget();
         }
     };
 
@@ -139,7 +156,23 @@ public class DefaultScene extends PersonateScene {
                 }
                 break;
             case MSG_ASR_RESULT:
-                mCameraEvent.setAsrResult((String)msg.obj);
+                // check idle
+                if (mState == STATE_IDLE) {
+                    mState = STATE_ACTIVE;
+                    Util.Logd(TAG, "#######Exit idle state");
+                    if (mIdleMotionThread != null) {
+                        mIdleMotionThread.interrupt();
+                    }
+
+                    // 重启事件检测
+                    mCameraEvent.setFaceDetect(true);
+                    mCameraEvent.setHandCover(true);
+
+                    mHandler.removeMessages(MSG_IDLE_ACTION);
+                    mIdleWatchDog.start();
+                } else {
+                    mIdleWatchDog.heartBeat();
+                }
                 break;
 
             case MSG_NLU_EVENT:
@@ -160,20 +193,6 @@ public class DefaultScene extends PersonateScene {
 
             case MSG_RC_EVENT:
                 doEventMotion(msg.arg1, msg.arg2);
-                break;
-
-            case MSG_IDLE_CHECK:
-                long diff = System.currentTimeMillis() - mLastActiveTime;
-                if (diff >= IDLE_TIME && mState != STATE_IDLE) {
-                    Util.Logd(TAG, "#######Enter idle state");
-                    mState = STATE_IDLE;
-                    //暂停事件检测
-                    mCameraEvent.setFaceDetect(false);
-                    mCameraEvent.setHandCover(false);
-                    mHandler.sendEmptyMessage(MSG_IDLE_ACTION);
-                }
-                // 延后检查是否为idle状态
-                mHandler.sendEmptyMessageDelayed(MSG_IDLE_CHECK, IDLE_TIME);
                 break;
 
             case MSG_IDLE_ACTION:
@@ -199,22 +218,26 @@ public class DefaultScene extends PersonateScene {
 
                 mHandler.removeMessages(MSG_HAND_WAVE_DETECT);
                 time = System.currentTimeMillis();
-                String dontKnow = mContext.getString(R.string.hi);
                 if ((time - mLastHandEventTime) > COVER_FREQ) {
                     mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
-                    if (mPeopleName == null || (time - mLastPeopleTime) > 2000) {
-                        startSpeaking(dontKnow);
-                        mPeopleName = null;
+
+                    FaceRecord.PeopleInfo person = mFaceRecords.getLasted();
+                    if (person == null) {
+                        String unKnow = mContext.getString(R.string.hi);
+                        startSpeaking(unKnow);
                     } else {
-                        String know = mContext.getString(R.string.hi) + mPeopleName;
-                        startSpeaking(know);
+                        if ((time - person.mLastUpdate) > 2000) {
+                            startSpeaking(mContext.getString(R.string.hi));
+                        } else {
+                            String know = mContext.getString(R.string.hi) + mFaceRecords.getNameCalls(person.mInfo);
+                            startSpeaking(know);
+                        }
                     }
                     mLastHandEventTime = time;
                 }
                 break;
             case MSG_FACE_RECONGIZE:
-                mLastPeopleTime = System.currentTimeMillis();
-                mPeopleName = (String)msg.obj;
+                mFaceRecords.doFaceResponse((FaceInformation) msg.obj);
                 break;
 
             case MSG_SAY_HELLO:
@@ -384,7 +407,6 @@ public class DefaultScene extends PersonateScene {
         }
     }
 
-
     private void doNluResponse(int requestId, String text) {
         int expression = -1;
         short motion = -1;
@@ -461,7 +483,6 @@ public class DefaultScene extends PersonateScene {
                 Util.Logd(TAG, "setMicArrayOrientation 0 fail");
             }
 
-            mLastActiveTime = System.currentTimeMillis();
             if (mState == STATE_IDLE) {
                 mState = STATE_ACTIVE;
                 Util.Logd(TAG, "#######Exit idle state");
@@ -472,6 +493,11 @@ public class DefaultScene extends PersonateScene {
                 // 重启事件检测
                 mCameraEvent.setFaceDetect(true);
                 mCameraEvent.setHandCover(true);
+
+                mHandler.removeMessages(MSG_IDLE_ACTION);
+                mIdleWatchDog.start();
+            } else {
+                mIdleWatchDog.heartBeat();
             }
         }
     };
@@ -537,4 +563,121 @@ public class DefaultScene extends PersonateScene {
         mRobotCtl.reset(RobotMotion.Units.ALL);
     }
 
+    public class FaceRecord {
+        private final int MAX_RECORD = 5;
+        private List<PeopleInfo> mItems;
+        private PeopleInfo mLastedPerson;
+        private final String mLanguage;
+        private final String brother;
+        private final String sister;
+        private final String uncle;
+        private final String aunt;
+        private final String good_am;
+        private final String good_pm;
+        private final String meet_again;
+        private final String children;
+
+        public class PeopleInfo {
+            public FaceInformation mInfo;
+            public long mLastUpdate;
+
+            public PeopleInfo(FaceInformation info) {
+                mInfo = info;
+                mLastUpdate = System.currentTimeMillis();
+            }
+        }
+
+        public FaceRecord(Context context) {
+            mItems = new ArrayList<PeopleInfo>();
+            mLanguage = context.getResources().getConfiguration().locale.getLanguage();
+            brother = context.getString(R.string.brother);
+            sister = context.getString(R.string.sister);
+            uncle = context.getString(R.string.uncle);
+            aunt = context.getString(R.string.aunt);
+            good_am = context.getString(R.string.good_am);
+            good_pm = context.getString(R.string.good_pm);
+            meet_again = context.getString(R.string.meet_again);
+            children = context.getString(R.string.hi_children);
+        }
+
+        public synchronized PeopleInfo getLasted() {
+            return mLastedPerson;
+        }
+
+        private synchronized void doFaceResponse(FaceInformation person) {
+            boolean bExist = false;
+            int oldIndex = 0;
+            PeopleInfo tmp = null;
+
+            Util.Logd(TAG, "Name:" + person.mPerson +
+                    " Gender:" + person.mGender + " Age:" + person.mAge);
+
+            for (int i = 0; i < mItems.size(); i++) {
+                tmp = mItems.get(i);
+                if (tmp.mInfo.mPerson.equals(person.mPerson)) {
+                    oldIndex = i;
+                    bExist = true;
+                    break;
+                }
+                // get the oldest record
+                oldIndex = tmp.mLastUpdate > mItems.get(oldIndex).mLastUpdate ? oldIndex : i;
+            }
+
+            long time = System.currentTimeMillis();
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(time);
+            int apm = calendar.get(Calendar.AM_PM);
+            if (bExist) {
+                tmp = mItems.get(oldIndex);
+                long timeDiff = time - tmp.mLastUpdate;
+                if (timeDiff > 30 * 1000) {
+                    startSpeaking(getNameCalls(person) + "," + meet_again);
+                }
+                tmp.mLastUpdate = time;
+            } else {
+                tmp = new PeopleInfo(person);
+                if(mItems.size() >= MAX_RECORD)
+                    mItems.set(oldIndex, tmp);
+                else
+                    mItems.add(tmp);
+
+                String name = "";
+                if (apm == Calendar.AM) {
+                    name = good_am + "," + getNameCalls(person);
+                } else if (apm == Calendar.PM) {
+                    name = good_pm + "," + getNameCalls(person);
+                }
+                startSpeaking(name);
+            }
+            mLastedPerson = tmp;
+        }
+
+        public String getNameCalls(FaceInformation face) {
+            String call = "";
+            if (face.mPerson.equals("unknown")) {
+                if (face.mGender == FaceInformation.Male) {
+                    if (face.mAge >= 40) {
+                        call = uncle;
+                    } else if (face.mAge > 8) {
+                        call = brother;
+                    } else {
+                        call = children;
+                    }
+                } else if (face.mGender == FaceInformation.FeMale) {
+                    if (face.mAge >= 40) {
+                        call = aunt;
+                    } else if (face.mAge > 8) {
+                        call = sister;
+                    } else {
+                        call = children;
+                    }
+                } else {
+                    call = "";
+                }
+            } else {
+                call = face.mPerson;
+            }
+            return call;
+        }
+    }
 }

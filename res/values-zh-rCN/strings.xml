@@ -44,4 +44,13 @@
     <string name="noknow">我好像不认识你哦</string>
     <string name="hi">你好,</string>
     <string name="iPaliPal">我在呢</string>
+    
+    <string name="brother">大哥哥</string>
+    <string name="sister">大姐姐</string>
+    <string name="uncle">叔叔</string>
+    <string name="aunt">阿姨</string>
+    <string name="good_am">早上好</string>
+    <string name="good_pm">下午好</string>
+    <string name="meet_again">我们又见面啦</string>
+    <string name="hi_children">小朋友</string>
 </resources>

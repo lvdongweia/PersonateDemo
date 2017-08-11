@@ -9,6 +9,7 @@ import android.media.AudioManager;
 import android.media.AudioManager.MicArrayEventListener;
 import android.os.Binder;
 import android.os.IBinder;
+import android.robot.motion.RobotMotion;
 import android.robot.speech.SpeechManager;
 import android.text.TextUtils;
 
@@ -24,6 +25,7 @@ public class PersonateService extends Service {
 
     private AudioManager mAudioManager;
     private SpeechManager mSpeechManager;
+    private RobotMotion mRobotMotion;
 
     private final MicArrayEventListener mListener = new MicArrayEventListener() {
         @Override
@@ -37,6 +39,8 @@ public class PersonateService extends Service {
 
                 String iPal = getString(R.string.iPaliPal);
                 mSpeechManager.startSpeaking(iPal, true);
+
+                mRobotMotion.turn(angle, 2);
 
                 Intent intent = new Intent(PersonateService.this, PersonateActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -54,6 +58,7 @@ public class PersonateService extends Service {
         mAudioManager.setMicArrayEventListener("com.avatar.personate.service", mListener);
 
         mSpeechManager = (SpeechManager)getSystemService(Context.SPEECH_SERVICE);
+        mRobotMotion = new RobotMotion();
     }
 
     @Override
