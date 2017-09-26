@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.os.Message;
-import android.provider.Contacts;
+import android.robot.hw.RobotDevices;
 import android.robot.motion.RobotMotion;
 import android.robot.motion.RobotMotion.Emoji;
 import android.robot.scheduler.RobotConstants;
@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.avatar.personate.Util;
-import com.avatar.robot.Robot;
 
 import com.avatar.personate.R;
 import com.avatar.robot.util.SystemMotion;
@@ -50,8 +49,10 @@ public class DefaultScene extends PersonateScene {
     private boolean mIsPersonNearby;
     private long mLastHandEventTime = System.currentTimeMillis();
     private int mTurnSession;
+    private int mArmSession;
     private boolean mIsTurning;
     private int mExpression_id = -1;
+
 
 
     public DefaultScene(Context context) {
@@ -69,10 +70,13 @@ public class DefaultScene extends PersonateScene {
         mRobotCtl.setListener(new RobotMotion.Listener() {
             @Override
             public void onCompleted(int session_id, int result, int errorcode) {
-                if (mIsTurning && session_id == mTurnSession) {
+                if (session_id == mTurnSession && mIsTurning) {
                     mIsTurning = false;
                     Util.Logd(TAG, "Turn Over.");
-                    mHandler.sendEmptyMessage(MSG_SAY_HELLO);
+                    //mHandler.sendEmptyMessage(MSG_SAY_HELLO);
+                } else if (session_id == mArmSession) {
+                    //mHandler.sendEmptyMessageDelayed(MSG_RESET_ARM_IDLE, 200);
+                    mHandler.sendEmptyMessage(MSG_RESET_ARM_IDLE);
                 }
             }
         });
@@ -188,7 +192,7 @@ public class DefaultScene extends PersonateScene {
                 break;
 
             case MSG_TOUCH_EVENT:
-                doExpression(Robot.EMOTION_LAUGH);
+                doExpression(Emoji.LAUGH);
                 break;
 
             case MSG_RC_EVENT:
@@ -219,7 +223,7 @@ public class DefaultScene extends PersonateScene {
                 mHandler.removeMessages(MSG_HAND_WAVE_DETECT);
                 time = System.currentTimeMillis();
                 if ((time - mLastHandEventTime) > COVER_FREQ) {
-                    mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
+                    mArmSession = mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
 
                     FaceRecord.PeopleInfo person = mFaceRecords.getLasted();
                     if (person == null) {
@@ -243,12 +247,16 @@ public class DefaultScene extends PersonateScene {
             case MSG_SAY_HELLO:
                 int random = (int)(Math.random()*10) % mHelloWords.length;
                 String strCover = mHelloWords[random];
-                mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
+                mArmSession = mRobotCtl.doAction(SystemMotion.WAVE, 0, 500);
                 startSpeaking(strCover);
                 break;
 
             case MSG_SET_EXPRESSION:
                 doExpression(msg.arg1);
+                break;
+
+            case MSG_RESET_ARM_IDLE:
+                mRobotCtl.doAction(SystemMotion.IDLE, 0, 500);
                 break;
 
             default:
@@ -555,12 +563,12 @@ public class DefaultScene extends PersonateScene {
     }
 
     private void idleAction() {
-        mRobotCtl.reset(RobotMotion.Units.NECT);
+        mRobotCtl.reset(RobotDevices.Units.NECT_MOTORS);
         mRobotCtl.doAction(SystemMotion.IDLE, 0, 500);
     }
 
     private void randomActionReset() {
-        mRobotCtl.reset(RobotMotion.Units.ALL);
+        mRobotCtl.reset(RobotDevices.Units.ALL_MOTORS);
     }
 
     public class FaceRecord {

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.avatar.personate"
+    android:versionCode="100"
+    android:versionName="1.0.0"
     android:sharedUserId="android.uid.system">
 
     <uses-feature android:name="android.hardware.Camera" />
@@ -35,6 +37,7 @@
         <receiver android:name=".broadcast.PersonateReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </receiver>
 

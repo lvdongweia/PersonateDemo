@@ -17,6 +17,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
+import android.robot.hw.RobotDevices;
 import android.robot.motion.RobotMotion;
 
 import com.avatar.personate.FaceRecgUtil;
@@ -326,7 +327,7 @@ public class CameraEvent implements Camera.PreviewCallback {
                 }
             };
 
-            mFaceTrackWatchDog = new HandlerWatchDog(mFaceHandler, 3000, 500, "Face Track") {
+            mFaceTrackWatchDog = new HandlerWatchDog(mFaceHandler, 1500, 500, "Face Track") {
                 @Override
                 public void onTimeout() {
                     // start search face
@@ -426,14 +427,14 @@ public class CameraEvent implements Camera.PreviewCallback {
     public synchronized void setNeckRotateAngle(int angle) {
         if (HEAD_LEFT_MAX <= angle && angle <= HEAD_RIGHT_MAX) {
             mHeadStatus.mNowRotateAngle = angle;
-            mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, angle, 500, 0);
+            mRobotCtrl.startMotor(RobotDevices.Motors.NECK_ROTATION, angle, 500, 0);
         }
     }
 
     public synchronized void setNeckTiltAngle(int angle) {
         if (HEAD_BOW_MAX <= angle && angle <= HEAD_RISE_MAX) {
             mHeadStatus.mNowTiltAngle = angle;
-            mRobotCtrl.runMotor(RobotMotion.Motors.NECK_TILT, angle, 500, 0);
+            mRobotCtrl.startMotor(RobotDevices.Motors.NECK_TILT, angle, 500, 0);
         }
     }
 
@@ -694,7 +695,7 @@ public class CameraEvent implements Camera.PreviewCallback {
         }
 
         mHeadTilt.mIsExcting = true;
-        mHeadTilt.mSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_TILT, mHeadStatus.mNowTiltAngle, 500, 0);
+        mHeadTilt.mSession = mRobotCtrl.startMotor(RobotDevices.Motors.NECK_TILT, mHeadStatus.mNowTiltAngle, 500, 0);
     }
 
     private synchronized void neckRotate(int angle) {
@@ -708,7 +709,7 @@ public class CameraEvent implements Camera.PreviewCallback {
         }
 
         mHeadRotate.mIsExcting = true;
-        mHeadRotate.mSession = mRobotCtrl.runMotor(RobotMotion.Motors.NECK_ROTATION, mHeadStatus.mNowRotateAngle, 500, 0);
+        mHeadRotate.mSession = mRobotCtrl.startMotor(RobotDevices.Motors.NECK_ROTATION, mHeadStatus.mNowRotateAngle, 500, 0);
     }
 
     private class FrameDecode {

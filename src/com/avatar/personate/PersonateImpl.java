@@ -10,7 +10,6 @@ import android.provider.Settings;
 
 import com.avatar.personate.scene.DefaultScene;
 import com.avatar.personate.scene.PersonateScene;
-import com.avatar.robot.Robot;
 import com.avatar.personate.Util;
 
 import com.avatar.personate.R;

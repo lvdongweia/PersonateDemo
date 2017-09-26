@@ -9,7 +9,6 @@ import android.os.Message;
 import android.robot.speech.SpeechManager;
 
 import com.avatar.personate.PersonateActivity;
-import com.avatar.robot.Robot;
 
 public abstract class PersonateScene {
     protected Context mContext;
@@ -34,6 +33,7 @@ public abstract class PersonateScene {
     public final int MSG_SET_EXPRESSION = 10;
     public static final int MSG_ASR_BEGIN   = 11;
     public static final int MSG_ASR_RESULT  = 12;
+    public final int MSG_RESET_ARM_IDLE = 13;
 
     public PersonateScene(Context context, int scene) {
         mContext = context;
